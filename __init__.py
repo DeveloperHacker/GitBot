@@ -1,6 +1,3 @@
-from github import Github
-
-import Parser
 from GitHandler import GitHandler
 
 handler = GitHandler(bot_nick="PythonBot")

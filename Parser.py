@@ -1,25 +1,8 @@
+import re
+
 from nltk.parse.stanford import StanfordDependencyParser, StanfordParser
 
-
-class Action:
-    def __init__(self, name: str, objects: list, preps: list):
-        self.name = name
-        self.objects = objects
-        self.preps = preps
-
-    def __str__(self) -> str:
-        return "Action(name={}, objects={}, ats={})".format(self.name, self.objects, self.preps)
-
-
-class Parse:
-    def __init__(self, subjects: list, actions: list):
-        self.subjects = subjects
-        self.actions = actions
-
-    def __str__(self) -> str:
-        acts = ", ".join([act.__str__() for act in self.actions])
-        return "Parse(subjects={}, actions=[{}])".format(self.subjects, acts)
-
+from Tree import Sentence, Action, Parse, Subject, Preposition
 
 phrase_level = {
     "ADJP", "ADVP", "CONJR", "FRAG", "INTJ", "LST", "NAC", "NP", "NX", "PP", "PRN", "PRT", "QP", "RRC", "UCP", "VP",
@@ -36,6 +19,10 @@ def _get_subtrees(tree, labels: list) -> list:
     return [node for node in tree if not isinstance(node, str) and node.label() in labels]
 
 
+def _get_trees(tree, labels: list) -> list:
+    return _get_subtrees(tree, labels) + [t for node in tree if not isinstance(node, str) for t in _get_trees(node, labels)]
+
+
 def _get_subjects(tree) -> list:
     subj = [w for np in _get_subtrees(tree, ["NP"]) for w in _get_subjects(np)]
     if len(subj) != 0: return subj
@@ -46,15 +33,20 @@ def _get_subjects(tree) -> list:
             nps.append([])
         elif label not in phrase_level:
             nps[-1].extend(np.flatten())
-    sdp_trees = [next(sdp.raw_parse(" ".join(words))) for words in nps]
-    return [node["word"] for sdp_tree in sdp_trees for i, node in sdp_tree.nodes.items() if node["head"] == 0]
+    sdp_trees = [next(sdp.raw_parse(" ".join(words))) for words in nps if len(words) > 0]
+    subjects = []
+    for sdp_tree in sdp_trees:
+        subject = Subject("")
+        for i, node in sdp_tree.nodes.items():
+            if node["word"] is None: continue
+            if node["head"] == 0: subject.noun = node["word"]
+            elif node["tag"] != "DT": subject.adjectives.append(node["word"])
+        subjects.append(subject)
+    return subjects
 
 
 def _get_prepositional(tree) -> list:
-    preps = [w for pp in _get_subtrees(tree, ["PP"]) for w in _get_prepositional(pp)]
-    if len(preps) != 0: return preps
-    label = tree[0].label()
-    return [(w, label) for w in _get_subjects(tree)]
+    return [Preposition.create(pp[0].label(), subj) for pp in _get_trees(tree, ["PP"]) for subj in _get_subjects(pp)]
 
 
 def _get_actions(vp) -> list:
@@ -62,36 +54,34 @@ def _get_actions(vp) -> list:
     return [vb[0] for vb in vbs]
 
 
-def _parse_simple_sentence(tree):
+def _parse_simple_sentence(tree) -> Sentence:
     if tree.label() != "S": return None
     nps = _get_subtrees(tree, ["NP"])
-    parse = Parse(subjects=[w for np in nps for w in _get_subjects(np)], actions=[])
-    vps = _get_subtrees(tree, ["VP"])
-    for vp in vps:
-        acts = _get_actions(vp)
-        words = [w for np in _get_subtrees(vp, ["NP"]) for w in _get_subjects(np)]
-        preps = [w for pp in _get_subtrees(vp, ["PP"]) for w in _get_prepositional(pp)]
-        parse.actions.extend([Action(act, words, preps) for act in acts])
-    return parse
+    sentence = Sentence(subjects=[subj for np in nps for subj in _get_subjects(np)])
+    vps = _get_trees(tree, ["VP"])
+    sentence.actions = [Action(act, _get_subjects(vp), _get_prepositional(vp)) for vp in vps for act in _get_actions(vp)]
+    return sentence
 
 
-def _parse_sentence_with_guessing_verb(tree) -> list:
-    if tree.label() != "NP": return None
-    preps = [w for pp in _get_subtrees(tree, ["PP"]) for w in _get_prepositional(pp)]
-    parse = Parse(subjects=[], actions=[Action("show", [w for w in _get_subjects(tree)], preps)])
-    return parse
+def _parse_sentence_with_guessing_verb(tree) -> Sentence:
+    if tree.label() not in ["NP", "FRAG"]: return None
+    sentence = Sentence(actions=[Action("show", _get_subjects(tree), _get_prepositional(tree))])
+    return sentence
 
 
 sp = StanfordParser(model_path="edu/stanford/nlp/models/lexparser/englishPCFG.ser.gz")
 sdp = StanfordDependencyParser(model_path="edu/stanford/nlp/models/lexparser/englishPCFG.ser.gz")
 
 
-def parse_string(string: str) -> Parse:
-    if len(string.split()) == 0: return None
-    sp_tree = next(sp.raw_parse(string))[0]
-    # print(sp_tree)
-    parse = _parse_simple_sentence(sp_tree)
-    if parse is not None: return parse
-    parse = _parse_sentence_with_guessing_verb(sp_tree)
-    if parse is not None: return parse
-    return Parse(subjects=[], actions=[])
+def parse_string(text: str) -> Parse:
+    strings = re.split("[\.;]", text)
+    parse = Parse()
+    for string in strings:
+        if len(string.split()) == 0: continue
+        sp_tree = next(sp.raw_parse(string))[0]
+        # print(sp_tree)
+        sentence = _parse_simple_sentence(sp_tree)
+        if sentence is not None: parse.sentences.append(sentence)
+        sentence = _parse_sentence_with_guessing_verb(sp_tree)
+        if sentence is not None: parse.sentences.append(sentence)
+    return parse
