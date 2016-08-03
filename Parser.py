@@ -79,7 +79,7 @@ def parse_string(text: str) -> Parse:
     for string in strings:
         if len(string.split()) == 0: continue
         sp_tree = next(sp.raw_parse(string))[0]
-        # print(sp_tree)
+        print(sp_tree)
         sentence = _parse_simple_sentence(sp_tree)
         if sentence is not None: parse.sentences.append(sentence)
         sentence = _parse_sentence_with_guessing_verb(sp_tree)

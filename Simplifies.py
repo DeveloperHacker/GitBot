@@ -4,8 +4,13 @@ synonyms = {
     "authorise": "login",
     "disconnect": "close",
     "repository": "repo",
+    "project": "repo",
     "repositories": "repos",
-    "storage": "repos"
+    "projects": "repos",
+    "storage": "repos",
+    "recruited": "hireable",
+    "following": "followings",
+    "organizations": "orgs"
 }
 
 
@@ -17,4 +22,3 @@ def simplify_word(word: str) -> str:
 
 def simplify_exp(exp: list) -> list:
     return [simplify_word(word) for word in exp]
-
