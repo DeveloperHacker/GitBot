@@ -14,13 +14,17 @@ word_level = {
     "PRP$", "RB", "RBR", "RBS", "RP", "SYM", "TO", "UH", "VB", "VBD", "VBG", "VBP", "VBZ", "WDT", "WP", "WP$", "WRB"
 }
 
+sp = StanfordParser(model_path="edu/stanford/nlp/models/lexparser/englishPCFG.ser.gz")
+sdp = StanfordDependencyParser(model_path="edu/stanford/nlp/models/lexparser/englishPCFG.ser.gz")
+
 
 def _get_subtrees(tree, labels: list) -> list:
     return [node for node in tree if not isinstance(node, str) and node.label() in labels]
 
 
 def _get_trees(tree, labels: list) -> list:
-    return _get_subtrees(tree, labels) + [t for node in tree if not isinstance(node, str) for t in _get_trees(node, labels)]
+    return _get_subtrees(tree, labels) + [t for node in tree if not isinstance(node, str) for t in
+                                          _get_trees(node, labels)]
 
 
 def _get_subjects(tree) -> list:
@@ -39,8 +43,10 @@ def _get_subjects(tree) -> list:
         subject = Subject("")
         for i, node in sdp_tree.nodes.items():
             if node["word"] is None: continue
-            if node["head"] == 0: subject.noun = node["word"]
-            elif node["tag"] != "DT": subject.adjectives.append(node["word"])
+            if node["head"] == 0:
+                subject.noun = node["word"]
+            else:
+                subject.adjectives.append(node["word"])
         subjects.append(subject)
     return subjects
 
@@ -59,7 +65,8 @@ def _parse_simple_sentence(tree) -> Sentence:
     nps = _get_subtrees(tree, ["NP"])
     sentence = Sentence(subjects=[subj for np in nps for subj in _get_subjects(np)])
     vps = _get_trees(tree, ["VP"])
-    sentence.actions = [Action(act, _get_subjects(vp), _get_prepositional(vp)) for vp in vps for act in _get_actions(vp)]
+    sentence.actions = [Action(act, _get_subjects(vp), _get_prepositional(vp)) for vp in vps for act in
+                        _get_actions(vp)]
     return sentence
 
 
@@ -67,10 +74,6 @@ def _parse_sentence_with_guessing_verb(tree) -> Sentence:
     if tree.label() not in ["NP", "FRAG"]: return None
     sentence = Sentence(actions=[Action("show", _get_subjects(tree), _get_prepositional(tree))])
     return sentence
-
-
-sp = StanfordParser(model_path="edu/stanford/nlp/models/lexparser/englishPCFG.ser.gz")
-sdp = StanfordDependencyParser(model_path="edu/stanford/nlp/models/lexparser/englishPCFG.ser.gz")
 
 
 def parse_string(text: str) -> Parse:
