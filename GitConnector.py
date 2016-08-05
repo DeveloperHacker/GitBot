@@ -1,5 +1,4 @@
 
-import github.GithubObject
 from github import Github, GithubException
 
 

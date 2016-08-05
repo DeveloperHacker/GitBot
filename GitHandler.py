@@ -1,12 +1,10 @@
 from Tools.scripts.treesync import raw_input
 
-import github.GithubObject
 from github import GithubException
 
+import Parser
 from GitConnector import GitConnector
-from Parser import parse_string
 from Simplifies import simplify_word, simplify_exp
-from Tree import Action
 
 
 def format_nick(nick, max_len) -> str:
@@ -44,15 +42,15 @@ class GitHandler:
 
     def handle(self):
         data = self.read()
-        parse = parse_string(data)
-        print(parse)
-        if parse is None: return
-        for sentence in parse.sentences:
-            for action in sentence.actions:
-                verb = simplify_word(action.verb)
+        root = Parser.parse(data)
+        print(root)
+        for sentence in root["S"]:
+            if sentence is None: continue
+            for action in sentence["AA"]:
+                verb = simplify_word(action["VV"])
                 if verb in self._commands: self._commands[verb](action)
 
-    def login(self, action: Action):
+    def login(self, action):
         self.print("login:")
         login = self.read()
         self.print("password:")
@@ -62,11 +60,11 @@ class GitHandler:
             self._nick = self._default_nick
             self.print("Incorrect input: login or password")
 
-    def unlogin(self, action: Action):
+    def unlogin(self, action):
         self._connector.unlogin()
         self._nick = self._default_nick
 
-    def close(self, action: Action):
+    def close(self, action):
         self.stop()
 
     #     Warning
@@ -74,25 +72,26 @@ class GitHandler:
 
     # ToDo: something with this bullshit
 
-    def n_print(self, preps: list, foo):
-        if len(preps) == 0 and self._connector.authorised() is not None:
+    def n_print(self, subjects: list, foo):
+        if len(subjects) == 0 and self._connector.authorised() is not None:
             self.print(foo(self._connector.authorised()))
-        elif len(preps) == 1:
+        elif len(subjects) == 1:
             try:
-                self.print(foo(preps[0].noun))
+                for subj in subjects: self.print(foo(subj["NN"]))
             except GithubException as ex:
-                if ex.status == 404: self.print("User with login=\"" + preps[0].noun + "\" not found")
+                if ex.status == 404: self.print("User with login=\"" + subjects[0]["NN"] + "\" not found")
         else:
-            for prep in preps:
+            for subject in subjects:
                 try:
-                    self.print(prep.noun + ": " + str(foo(prep.noun)))
+                    self.print(subject["NN"] + ": " + str(foo(subject["NN"])))
                 except GithubException as ex:
-                    if ex.status == 404: self.print("User with login=\"" + prep.noun + "\" not found")
+                    if ex.status == 404:
+                        self.print("User with login=\"" + subject["NN"] + "\" not found")
                     
-    def count(self, action: Action):
-        for subj in action.subjects:
-            name = simplify_word(subj.noun)
-            adjectives = simplify_exp(subj.adjectives)
+    def count(self, action):
+        for subj in action["SS"]:
+            name = simplify_word(subj["NN"])
+            adjectives = simplify_exp(subj["JJ"])
             foo = None
             if name == "repos":
                 if "public" in adjectives:
@@ -119,12 +118,12 @@ class GitHandler:
                 foo = (lambda login: self._connector.collaborators(login))
             elif name == "followers":
                 foo = (lambda login: self._connector.followers(login))
-            if foo is not None: self.n_print(action.prepositional, foo)
+            if foo is not None: self.n_print([pp for pps in subj["PP"] for pp in pps["SS"]], foo)
 
-    def show(self, action: Action):
-        for subj in action.subjects:
-            name = simplify_word(subj.noun)
-            adjectives = simplify_exp(subj.adjectives)
+    def show(self, action):
+        for subj in action["SS"]:
+            name = simplify_word(subj["NN"])
+            adjectives = simplify_exp(subj["JJ"])
             foo = None
             if name == "repos":
                 if "starred" in adjectives:
@@ -258,4 +257,4 @@ class GitHandler:
                     foo = (lambda login: self._connector.updated_at(login))
                 elif "modification" in adjectives and "last" in adjectives:
                     foo = (lambda login: self._connector.last_modified(login))
-            if foo is not None: self.n_print(action.prepositional, foo)
+            if foo is not None: self.n_print([pp for pps in subj["PP"] for pp in pps["SS"]], foo)
