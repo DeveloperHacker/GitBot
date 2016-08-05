@@ -9,8 +9,7 @@ synonyms = {
     "projects": "repos",
     "storage": "repos",
     "recruited": "hireable",
-    "following": "followings",
-    "organizations": "orgs"
+    "organisations": "orgs"
 }
 
 

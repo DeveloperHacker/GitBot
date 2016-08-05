@@ -87,6 +87,6 @@ def parse(text: str) -> dict:
         if sp_tree.label() in ["NP", "FRAG"]:
             string = "show " + string
             sp_tree = next(sp.raw_parse(string))[0]
-        print(sp_tree)
+        # print(sp_tree)
         root["S"].append(_parse_sentence(sp_tree) if sp_tree.label() == "S" else None)
     return root

@@ -1,6 +1,7 @@
 from Tools.scripts.treesync import raw_input
 
 from github import GithubException
+from github.NamedUser import NamedUser
 
 import Parser
 from GitConnector import GitConnector
@@ -29,6 +30,7 @@ class GitHandler:
 
     def start(self):
         self._connect = True
+        self.print("Hello")
         while self._connect: self.handle()
 
     def stop(self):
@@ -43,7 +45,7 @@ class GitHandler:
     def handle(self):
         data = self.read()
         root = Parser.parse(data)
-        print(root)
+        # print(root)
         for sentence in root["S"]:
             if sentence is None: continue
             for action in sentence["AA"]:
@@ -51,20 +53,25 @@ class GitHandler:
                 if verb in self._commands: self._commands[verb](action)
 
     def login(self, action):
-        self.print("login:")
-        login = self.read()
-        self.print("password:")
-        pword = self.read()
-        self._nick = self._connector.authorise(login, pword)
-        if self._nick is None:
-            self._nick = self._default_nick
-            self.print("Incorrect input: login or password")
+        if self._connector.authorised():
+            self.print("you need to unlogin before you login again")
+        else:
+            self.print("login:")
+            login = self.read()
+            self.print("password:")
+            pword = self.read()
+            if not self._connector.authorise(login, pword):
+                self._nick = self._default_nick
+                self.print("Incorrect input: login or password")
+            else:
+                self._nick = self._connector.authorised()
 
     def unlogin(self, action):
         self._connector.unlogin()
         self._nick = self._default_nick
 
     def close(self, action):
+        self.print("Bye")
         self.stop()
 
     #     Warning
@@ -72,189 +79,225 @@ class GitHandler:
 
     # ToDo: something with this bullshit
 
-    def n_print(self, subjects: list, foo):
+    def n_print(self, command: str, subj, foo):
+        subjects = [pp for pps in subj["PP"] for pp in pps["SS"]]
         if len(subjects) == 0 and self._connector.authorised() is not None:
-            self.print(foo(self._connector.authorised()))
-        elif len(subjects) == 1:
-            try:
-                for subj in subjects: self.print(foo(subj["NN"]))
-            except GithubException as ex:
-                if ex.status == 404: self.print("User with login=\"" + subjects[0]["NN"] + "\" not found")
+            user = self._connector.user()
+            value = foo(user)
+            self.print("{}: {}".format(command, value if value else "\"Access closed\""))
         else:
             for subject in subjects:
+                login = subject["NN"]
                 try:
-                    self.print(subject["NN"] + ": " + str(foo(subject["NN"])))
+                    user = self._connector.user() if login.lower() == self._nick.lower() else self._connector.user(login)
+                    login = user.login
+                    value = foo(user)
+                    self.print("{} at {}: {}".format(command, login, value if value else "\"Access closed\""))
                 except GithubException as ex:
                     if ex.status == 404:
-                        self.print("User with login=\"" + subject["NN"] + "\" not found")
+                        self.print("User with login of \"{}\" not found".format(login))
                     
     def count(self, action):
         for subj in action["SS"]:
-            name = simplify_word(subj["NN"])
-            adjectives = simplify_exp(subj["JJ"])
+            name = subj["NN"]
+            adjectives = subj["JJ"]
             foo = None
+            command = ""
             if name == "repos":
                 if "public" in adjectives:
-                    foo = (lambda login: self._connector.public_repos(login))
+                    foo = (lambda user: user.public_repos)
+                    command = "public repositories"
                 elif "private" in adjectives:
                     if "owned" in adjectives:
-                        foo = (lambda login: self._connector.owned_private_repos(login))
+                        foo = (lambda user: user.owned_private_repos)
+                        command = "owned private repositories"
                     else:
-                        foo = (lambda login: self._connector.total_private_repos(login))
+                        foo = (lambda user: user.total_private_repos)
+                        command = "private repositories"
                 else:
-                    foo = (lambda login: self._connector.public_repos(login) + self._connector.total_private_repos(login))
+                    def foo(user: NamedUser):
+                        public = user.public_repos
+                        private = user.total_private_repos
+                        return "{}(public) and {}(private)".format(public, private if private else "\"Access closed\"")
             elif name == "gists":
                 if "public" in adjectives:
-                    foo = (lambda login: self._connector.public_gists(login))
+                    foo = (lambda user: user.public_gists)
+                    command = "public gists"
                 elif "private" in adjectives:
-                    foo = (lambda login: self._connector.private_gists(login))
+                    foo = (lambda user: user.private_gists)
+                    command = "private gists"
                 else:
-                    foo = (lambda login:
-                           "public: " + str(self._connector.public_gists(login)) +
-                           " private: " + str(self._connector.private_gists(login)))
+                    def foo(user: NamedUser):
+                        public = user.public_gists
+                        private = user.private_gists
+                        return "{}(public) and {}(private)".format(public, private if private else "\"Access closed\"")
+                    command = "gists"
             elif name == "following":
-                foo = (lambda login: self._connector.following(login))
+                foo = (lambda user: user.following)
+                command = "following"
             elif name == "collaborators":
-                foo = (lambda login: self._connector.collaborators(login))
+                foo = (lambda user: user.collaborators)
+                command = "collaborators"
             elif name == "followers":
-                foo = (lambda login: self._connector.followers(login))
-            if foo is not None: self.n_print([pp for pps in subj["PP"] for pp in pps["SS"]], foo)
+                foo = (lambda user: user.followers)
+                command = "followers"
+            if foo is not None: self.n_print(command, subj, foo)
 
     def show(self, action):
         for subj in action["SS"]:
             name = simplify_word(subj["NN"])
             adjectives = simplify_exp(subj["JJ"])
             foo = None
+            command = ""
             if name == "repos":
-                if "starred" in adjectives:
-                    def foo(login):
-                        repos = list(self._connector.get_starred_repos(login))
-                        if len(repos) == 0: return None
-                        return ", ".join([repo.name for repo in repos])
-                else:
-                    def foo(login):
-                        repos = list(self._connector.get_repos(login))
-                        if len(repos) == 0: return None
-                        return ", ".join([repo.name for repo in repos])
+                def foo(user: NamedUser):
+                    repos = list(user.get_repos())
+                    if len(repos) == 0: return None
+                    return ", ".join([repo.name for repo in repos])
+                command = "repositories"
             if name == "gists":
-                # if "starred" in adjectives:
-                #     def foo(login):
-                #         gists = list(self._connector.get_starred_gists(login))
-                #         if len(gists) == 0: return None
-                #         return ", ".join([gist.id for gist in gists])
-                # else:
-                def foo(login):
-                    gists = list(self._connector.get_gists(login))
+                def foo(user: NamedUser):
+                    gists = list(user.get_gists())
                     if len(gists) == 0: return None
                     return ", ".join([gist.id for gist in gists])
+                command = "gists"
             if name == "keys":
-                def foo(login):
-                    keys = list(self._connector.get_keys(login))
+                def foo(user: NamedUser):
+                    keys = list(user.get_keys())
                     if len(keys) == 0: return None
                     return ", ".join(["(id: " + str(key.id) + " key: " + key.key + ") " for key in keys])
+                command = "keys"
             if name == "orgs":
-                def foo(login):
-                    orgs = list(self._connector.get_orgs(login))
+                def foo(user: NamedUser):
+                    orgs = list(user.get_orgs())
                     if len(orgs) == 0: return None
                     return ", ".join([org.login for org in orgs])
-            # if name == "emails":
-            #     def foo(login):
-            #         emails = list(self._connector.get_emails(login))
-            #         if len(emails) == 0: return None
-            #         return ", ".join([email.login for email in emails])
+                command = "organisations"
             elif name == "url":
-                if "organizations" in adjectives:
-                    foo = (lambda login: self._connector.organizations_url(login))
+                if "orgs" in adjectives:
+                    foo = (lambda user: user.organizations_url)
+                    command = "organisations url"
                 elif "repos" in adjectives:
-                    foo = (lambda login: self._connector.repos_url(login))
+                    foo = (lambda user: user.repos_url)
+                    command = "repositories url"
                 elif "subscriptions" in adjectives:
-                    foo = (lambda login: self._connector.subscriptions_url(login))
+                    foo = (lambda user: user.subscriptions_url)
+                    command = "subscriptions url"
                 elif "following" in adjectives:
-                    foo = (lambda login: self._connector.following_url(login))
+                    foo = (lambda user: user.following_url)
+                    command = "following url"
                 elif "gists" in adjectives:
-                    foo = (lambda login: self._connector.gists_url(login))
+                    foo = (lambda user: user.gists_url)
+                    command = "gists url"
                 elif "avatar" in adjectives:
-                    foo = (lambda login: self._connector.avatar_url(login))
+                    foo = (lambda user: user.avatar_url)
+                    command = "avatar url"
                 elif "events" in adjectives:
-                    if "received" in adjectives:
-                        foo = (lambda login: self._connector.received_events_url(login))
-                    else:
-                        foo = (lambda login: self._connector.events_url(login))
+                    foo = (lambda user: user.events_url)
+                    command = "events url"
                 elif "followers" in adjectives:
-                    foo = (lambda login: self._connector.followers_url(login))
+                    foo = (lambda user: user.followers_url)
+                    command = "events url"
                 elif "starred" in adjectives:
-                    foo = (lambda login: self._connector.starred_url(login))
+                    foo = (lambda user: user.starred_url)
+                    command = "starred url"
                 elif "html" in adjectives:
-                    foo = (lambda login: self._connector.url(login))
+                    foo = (lambda user: user.url)
+                    command = "html url"
                 else:
-                    foo = (lambda login: self._connector.url(login))
-            elif name == "followings":
-                def foo(login):
-                    followings = list(self._connector.get_followings(login))
+                    foo = (lambda user: user.url)
+                    command = "url"
+            elif name == "following":
+                def foo(user: NamedUser):
+                    followings = list(user.get_following())
                     if len(followings) == 0: return None
                     return ", ".join([following.login for following in followings])
+                command = "following"
             elif name == "name":
-                foo = (lambda login: self._connector.name(login))
+                foo = (lambda user: user.name)
+                command = "name"
             elif name == "bio":
-                foo = (lambda login: self._connector.bio(login))
+                foo = (lambda user: user.bio)
+                command = "bio"
             elif name == "type":
-                foo = (lambda login: self._connector.type(login))
+                foo = (lambda user: user.type)
+                command = "type"
             elif name == "email":
-                foo = (lambda login: self._connector.email(login))
+                foo = (lambda user: user.email)
+                command = "email"
             elif name == "blog":
-                foo = (lambda login: self._connector.blog(login))
+                foo = (lambda user: user.blog)
+                command = "blog"
             elif name == "data":
                 if "raw" in adjectives:
-                    foo = (lambda login: self._connector.raw_data(login))
+                    foo = (lambda user: user.raw_data)
+                    command = "raw data"
             elif name == "etag":
-                foo = (lambda login: self._connector.etag(login))
+                foo = (lambda user: user.etag)
+                command = "etag"
             elif name == "id":
                 if "gravatar" in adjectives:
-                    foo = (lambda login: self._connector.gravatar_id(login))
+                    foo = (lambda user: user.gravatar_id)
+                    command = "gravatar id"
                 else:
-                    foo = (lambda login: self._connector.id(login))
+                    foo = (lambda user: user.id)
+                    command = "id"
             elif name == "company":
-                foo = (lambda login: self._connector.company(login))
+                foo = (lambda user: user.company)
+                command = "company"
             elif name == "followers":
-                def foo(login):
-                    followers = list(self._connector.get_followers(login))
+                def foo(user: NamedUser):
+                    followers = list(user.get_followers())
                     if len(followers) == 0: return None
                     return ", ".join([follower.login for follower in followers])
+                command = "followers"
             elif name == "plan":
                 if "collaborators" in adjectives:
-                    def foo(login):
-                        plan = self._connector.plan(login)
+                    def foo(user: NamedUser):
+                        plan = user.plan
                         if plan is not None: return plan.collaborators
+                    command = "collaborators plan"
                 elif "repos" in adjectives and "private" in adjectives:
-                    def foo(login):
-                        plan = self._connector.plan(login)
+                    def foo(user: NamedUser):
+                        plan = user.plan
                         if plan is not None: return plan.private_repos
+                    command = "repositories plan"
                 elif "space" in adjectives:
-                    def foo(login):
-                        plan = self._connector.plan(login)
+                    def foo(user: NamedUser):
+                        plan = user.plan
                         if plan is not None: return plan.space
+                    command = "space plan"
                 elif "name" in adjectives:
-                    def foo(login):
-                        plan = self._connector.plan(login)
+                    def foo(user: NamedUser):
+                        plan = user.plan
                         if plan is not None: return plan.name
+                    command = "name plan"
                 else:
-                    def foo(login):
-                        plan = self._connector.plan(login)
+                    def foo(user: NamedUser):
+                        plan = user.plan
                         if plan is not None: return plan.name
+                    command = "plan"
             elif name == "hireable":
-                foo = (lambda login: self._connector.hireable(login))
+                foo = (lambda user: user.hireable)
+                command = "hireable"
             elif name == "login":
-                foo = (lambda login: self._connector.login(login))
+                foo = (lambda user: user.login)
+                command = "login"
             elif name == "location":
-                foo = (lambda login: self._connector.location(login))
+                foo = (lambda user: user.location)
+                command = "login"
             elif name == "headers":
                 if "raw" in adjectives:
-                    foo = (lambda login: self._connector.raw_headers(login))
+                    foo = (lambda user: user.raw_headers)
+                    command = "raw headers"
             elif name == "date":
                 if "creation" in adjectives:
-                    foo = (lambda login: self._connector.created_at(login))
+                    foo = (lambda user: user.created_at)
+                    command = "creation date"
                 elif "update" in adjectives:
-                    foo = (lambda login: self._connector.updated_at(login))
+                    foo = (lambda user: user.updated_at)
+                    command = "update date"
                 elif "modification" in adjectives and "last" in adjectives:
-                    foo = (lambda login: self._connector.last_modified(login))
-            if foo is not None: self.n_print([pp for pps in subj["PP"] for pp in pps["SS"]], foo)
+                    foo = (lambda user: user.last_modified)
+                    command = "modification date"
+            if foo is not None: self.n_print(command, subj, foo)
