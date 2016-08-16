@@ -19,9 +19,15 @@ class GitHandler:
         self._commands = {
             "count": self.count,
             "show": self.show,
+            "store": self.store,
             "login": self.login,
             "unlogin": self.unlogin,
             "close": self.close
+        }
+        self._stored = {
+            "user": None,
+            "repo": None,
+            "gist": None
         }
         self._bot_nick = bot_nick
         self._nick = default_nick
@@ -67,8 +73,9 @@ class GitHandler:
                 self._nick = self._connector.authorised()
 
     def unlogin(self, action):
-        self._connector.unlogin()
-        self._nick = self._default_nick
+        if self._connector.authorised():
+            self._connector.unlogin()
+            self._nick = self._default_nick
 
     def close(self, action):
         self.print("Bye")
@@ -77,10 +84,9 @@ class GitHandler:
     #     Warning
     #     I do not know how I it writen
 
-    # ToDo: something with this bullshit
+    # ToDo: something
 
-    def n_print(self, command: str, subj, foo):
-        subjects = [pp for pps in subj["PP"] for pp in pps["SS"]]
+    def execute(self, command: str, subjects, foo):
         if len(subjects) == 0 and self._connector.authorised() is not None:
             user = self._connector.user()
             value = foo(user)
@@ -89,20 +95,29 @@ class GitHandler:
             for subject in subjects:
                 login = subject["NN"]
                 try:
-                    user = self._connector.user() if login.lower() == self._nick.lower() else self._connector.user(login)
+                    if login == "user" and "this" in subject["JJ"]:
+                        user = self._stored["user"]
+                        if user is None:
+                            self.print("I did not remember any user")
+                            continue
+                    else:
+                        user = self._connector.user(login)
                     login = user.login
                     value = foo(user)
                     self.print("{} at {}: {}".format(command, login, value if value else "\"Access closed\""))
                 except GithubException as ex:
                     if ex.status == 404:
                         self.print("User with login of \"{}\" not found".format(login))
+                    elif ex.status == 403:
+                        self.print(ex.data["message"])
+                    else:
+                        raise ex
                     
     def count(self, action):
         for subj in action["SS"]:
             name = subj["NN"]
             adjectives = subj["JJ"]
             foo = None
-            command = ""
             if name == "repos":
                 if "public" in adjectives:
                     foo = (lambda user: user.public_repos)
@@ -119,6 +134,7 @@ class GitHandler:
                         public = user.public_repos
                         private = user.total_private_repos
                         return "{}(public) and {}(private)".format(public, private if private else "\"Access closed\"")
+                    command = "repositories"
             elif name == "gists":
                 if "public" in adjectives:
                     foo = (lambda user: user.public_gists)
@@ -141,14 +157,15 @@ class GitHandler:
             elif name == "followers":
                 foo = (lambda user: user.followers)
                 command = "followers"
-            if foo is not None: self.n_print(command, subj, foo)
+            if foo is not None:
+                subjects = [pp for pps in subj["PP"] if pps["IN"].lower() in {"in", "into", "at"} for pp in pps["SS"]]
+                self.execute(command, subjects, foo)
 
     def show(self, action):
         for subj in action["SS"]:
             name = simplify_word(subj["NN"])
             adjectives = simplify_exp(subj["JJ"])
             foo = None
-            command = ""
             if name == "repos":
                 def foo(user: NamedUser):
                     repos = list(user.get_repos())
@@ -300,4 +317,31 @@ class GitHandler:
                 elif "modification" in adjectives and "last" in adjectives:
                     foo = (lambda user: user.last_modified)
                     command = "modification date"
-            if foo is not None: self.n_print(command, subj, foo)
+            if foo is not None:
+                subjects = [pp for pps in subj["PP"] if pps["IN"].lower() in {"in", "into", "at", "for"} for pp in pps["SS"]]
+                self.execute(command, subjects, foo)
+
+    def store(self, action):
+        for subj in action["SS"]:
+            name = simplify_word(subj["NN"])
+            features = [s for pp in subj["PP"] if pp["IN"] in {"with"} for s in pp["SS"]]
+            if name == "user":
+                for feature in features:
+                    if "name" in feature["JJ"] or "login" in feature["JJ"]:
+                        login = feature["NN"]
+                        try:
+                            self._stored["user"] = self._connector.user(login)
+                            self.print("I remember it")
+                        except GithubException as ex:
+                            if ex.status == 404:
+                                self.print("User with login of \"{}\" not found".format(login))
+            elif name == "me":
+                if self._connector.authorised() is not None:
+                    self._stored["user"] = self._connector.user()
+                    self.print("I remember it")
+                else:
+                    self.print("I don't know who are you")
+            elif name == "repo":
+                pass
+            elif name == "gist":
+                pass

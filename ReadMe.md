@@ -17,13 +17,23 @@
            PythonBot  ::  repositories at DeveloperHacker: 2DEngine, ControllerOfControllers, egestats, GitBot, IrcBot, LispToSecd, Multimap, Prototype, SECD, Snake, Utils, SysKotlin
      DeveloperHacker  ::  the avatar url
            PythonBot  ::  avatar url: https://avatars.githubusercontent.com/u/11194423?v=3
-     DeveloperHacker  ::  show the repos and orgs url at developerhacker and AndreiChugunov and the avatar url at saloed. Count the private gists at Saloed
+     DeveloperHacker  ::  store a user with the name aezakme
+           PythonBot  ::  I remember it
+     DeveloperHacker  ::  a name for this user
+           PythonBot  ::  name at Aezakme: Kirill 
+     DeveloperHacker  ::  show the repos and orgs url at developerhacker and AndreiChugunov, and the avatar url at saloed, and name at this user and developerhacker. Count the public repos at Saloed
            PythonBot  ::  repositories at DeveloperHacker: 2DEngine, ControllerOfControllers, egestats, GitBot, IrcBot, LispToSecd, Multimap, Prototype, SECD, Snake, Utils, SysKotlin
            PythonBot  ::  repositories at AndreiChugunov: Geometry, MyAndroidSnake, RBTree
            PythonBot  ::  organisations url at DeveloperHacker: https://api.github.com/users/DeveloperHacker/orgs
            PythonBot  ::  organisations url at AndreiChugunov: https://api.github.com/users/AndreiChugunov/orgs
            PythonBot  ::  avatar url at Saloed: https://avatars.githubusercontent.com/u/8640896?v=3
-           PythonBot  ::  private gists at Saloed: "Access closed"
+           PythonBot  ::  name at Aezakme: Kirill
+           PythonBot  ::  name at DeveloperHacker: Sergei
+           PythonBot  ::  public repositories at Saloed: 8
+     DeveloperHacker  ::  remember me
+           PythonBot  ::  I remember it
+     DeveloperHacker  ::  show a name at this user
+           PythonBot  ::  name at DeveloperHacker: Sergei
      DeveloperHacker  ::  login me
            PythonBot  ::  you need to log out before you login again
      DeveloperHacker  ::  unlogin me

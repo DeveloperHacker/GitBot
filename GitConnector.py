@@ -1,7 +1,6 @@
 
 from github import Github
 from github.GithubException import BadCredentialsException
-from github.GithubObject import NotSet
 
 
 class GitConnector:
@@ -25,5 +24,8 @@ class GitConnector:
     def authorised(self) -> str:
         return self._authorised
 
-    def user(self, login=NotSet):
-        return self._git.get_user(login)
+    def user(self, login=None):
+        if self._authorised and (not login or login.lower() == self._authorised.lower()):
+            return self._git.get_user()
+        else:
+            return self._git.get_user(login)

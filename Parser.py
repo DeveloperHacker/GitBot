@@ -1,6 +1,13 @@
-import re
-
+import re, os
 from nltk.parse.stanford import StanfordDependencyParser, StanfordParser
+
+stanford_dir = os.getenv("HOME") + "/NLP"
+os.environ["STANFORD_DIR"] = stanford_dir
+os.environ["STANFORD_MODELS"] = "{0}/stanford-postagger-full/models:{0}/stanford-ner/classifiers".format(stanford_dir)
+os.environ["CLASSPATH"] = "{0}/stanford-postagger-full/stanford-postagger.jar:{0}/stanford-ner/stanford-ner.jar:{0}/stanford-parser-full/stanford-parser.jar:{0}/stanford-parser-full/stanford-parser-3.5.2-models.jar".format(stanford_dir)
+
+sp = StanfordParser(model_path="edu/stanford/nlp/models/lexparser/englishPCFG.ser.gz")
+sdp = StanfordDependencyParser(model_path="edu/stanford/nlp/models/lexparser/englishPCFG.ser.gz")
 
 phrase_level = {
     "ADJP", "ADVP", "CONJR", "FRAG", "INTJ", "LST", "NAC", "NP", "NX", "PP", "PRN", "PRT", "QP", "RRC", "UCP", "VP",
@@ -11,9 +18,6 @@ word_level = {
     "CC", "CD", "DT", "EX", "FW", "IN", "JJ", "JJR", "JJS", "LS", "MD", "NN", "NNS", "NNP", "NNPS", "PDT", "POS", "PRP",
     "PRP$", "RB", "RBR", "RBS", "RP", "SYM", "TO", "UH", "VB", "VBD", "VBG", "VBP", "VBZ", "WDT", "WP", "WP$", "WRB"
 }
-
-sp = StanfordParser(model_path="edu/stanford/nlp/models/lexparser/englishPCFG.ser.gz")
-sdp = StanfordDependencyParser(model_path="edu/stanford/nlp/models/lexparser/englishPCFG.ser.gz")
 
 
 def _subtrees(tree, labels: list) -> list:
@@ -68,7 +72,7 @@ def _parse_prepositional(tree) -> list:
 def _parse_sentence(tree) -> dict:
     sentence = {"SS": [], "AA": []}
     for np in _subtrees(tree, ["NP"]):
-        sentence["SS"].extends(_parse_subjects(np))
+        sentence["SS"].extend(_parse_subjects(np))
     for vp in _trees(tree, ["VP"]):
         for act in [vb[0] for vb in _subtrees(vp, ["VB", "VBD", "VBG", "VBN", "VBP", "VBZ"])]:
             sentence["AA"].append({
