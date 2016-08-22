@@ -51,7 +51,7 @@ class GitHandler:
     def handle(self):
         data = self.read()
         root = Parser.parse(data)
-        # print(root)
+        print(root)
         for sentence in root["S"]:
             if sentence is None: continue
             for action in sentence["AA"]:
@@ -95,7 +95,7 @@ class GitHandler:
             for subject in subjects:
                 login = subject["NN"]
                 try:
-                    if login == "user" and "this" in subject["JJ"]:
+                    if login == "user" and ("this" in subject["JJ"] or "stored" in subject["JJ"]):
                         user = self._stored["user"]
                         if user is None:
                             self.print("I did not remember any user")
@@ -318,7 +318,7 @@ class GitHandler:
                     foo = (lambda user: user.last_modified)
                     command = "modification date"
             if foo is not None:
-                subjects = [pp for pps in subj["PP"] if pps["IN"].lower() in {"in", "into", "at", "for"} for pp in pps["SS"]]
+                subjects = [pp for pps in subj["PP"] if pps["IN"].lower() in {"in", "into", "at", "for", "of"} for pp in pps["SS"]]
                 self.execute(command, subjects, foo)
 
     def store(self, action):

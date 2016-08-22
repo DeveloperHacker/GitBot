@@ -17,7 +17,7 @@
            PythonBot  ::  repositories at DeveloperHacker: 2DEngine, ControllerOfControllers, egestats, GitBot, IrcBot, LispToSecd, Multimap, Prototype, SECD, Snake, Utils, SysKotlin
      DeveloperHacker  ::  the avatar url
            PythonBot  ::  avatar url: https://avatars.githubusercontent.com/u/11194423?v=3
-     DeveloperHacker  ::  store a user with the name aezakme
+     DeveloperHacker  ::  store a user with the login aezakme
            PythonBot  ::  I remember it
      DeveloperHacker  ::  a name for this user
            PythonBot  ::  name at Aezakme: Kirill 

@@ -35,8 +35,8 @@ def _parse_collocations(tree) -> list:
         label = np.label()
         if label == "CC" or label == "," or label == ".":
             nps.append([])
-        elif label not in phrase_level:
-            nps[-1].extend(np.flatten())
+        elif label in word_level:
+            nps[-1].append(np[0])
     sdp_trees = [next(sdp.raw_parse(" ".join(words))) for words in nps if len(words) > 0]
     collocations = []
     for sdp_tree in sdp_trees:
@@ -88,9 +88,10 @@ def parse(text: str) -> dict:
     for string in strings:
         if len(string.split()) == 0: continue
         sp_tree = next(sp.raw_parse(string))[0]
+        print(sp_tree)
         if sp_tree.label() in ["NP", "FRAG"]:
             string = "show " + string
             sp_tree = next(sp.raw_parse(string))[0]
-        # print(sp_tree)
+        print(sp_tree)
         root["S"].append(_parse_sentence(sp_tree) if sp_tree.label() == "S" else None)
     return root
