@@ -1,9 +1,10 @@
 from Tools.scripts.treesync import raw_input
+from getpass import getpass
 
 from github import GithubException
 from github.NamedUser import NamedUser
 
-import Parser
+import Corrector
 from GitConnector import GitConnector
 from Simplifies import simplify_word, simplify_exp
 
@@ -48,36 +49,38 @@ class GitHandler:
     def read(self) -> str:
         return raw_input(format_nick(self._nick, self._max_nick_len) + "  ::  ")[:-1]
 
+    def hide_read(self) -> str:
+        return getpass(format_nick(self._nick, self._max_nick_len) + "  ::  ")
+
     def handle(self):
         data = self.read()
-        root = Parser.parse(data)
-        print(root)
-        for sentence in root["S"]:
-            if sentence is None: continue
-            for action in sentence["AA"]:
-                verb = simplify_word(action["VV"])
-                if verb in self._commands: self._commands[verb](action)
+        sentence = Corrector.parse(data)
+        # print(Corrector.tree(sentence))
+        if sentence is None: return
+        for vp in sentence["VP"]:
+            verb = simplify_word(vp["VB"])
+            if verb in self._commands: self._commands[verb](vp)
 
-    def login(self, action):
+    def login(self, _):
         if self._connector.authorised():
             self.print("you need to unlogin before you login again")
         else:
             self.print("login:")
             login = self.read()
             self.print("password:")
-            pword = self.read()
+            pword = self.hide_read()
             if not self._connector.authorise(login, pword):
                 self._nick = self._default_nick
                 self.print("Incorrect input: login or password")
             else:
                 self._nick = self._connector.authorised()
 
-    def unlogin(self, action):
+    def unlogin(self, _):
         if self._connector.authorised():
             self._connector.unlogin()
             self._nick = self._default_nick
 
-    def close(self, action):
+    def close(self, _):
         self.print("Bye")
         self.stop()
 
@@ -86,262 +89,288 @@ class GitHandler:
 
     # ToDo: something
 
-    def execute(self, command: str, subjects, foo):
-        if len(subjects) == 0 and self._connector.authorised() is not None:
+    def execute(self, command: str, pps, foo):
+        nps = [np for pp in pps if pp["IN"].lower() in Corrector.belongs_words for np in pp["NP"]]
+        if len(nps) == 0 and self._connector.authorised() is not None:
             user = self._connector.user()
             value = foo(user)
             self.print("{}: {}".format(command, value if value else "\"Access closed\""))
         else:
-            for subject in subjects:
-                login = subject["NN"]
+            for np in nps:
+                if "NN" in np: noun = simplify_word(np["NN"])
+                else: continue
                 try:
-                    if login == "user" and ("this" in subject["JJ"] or "stored" in subject["JJ"]):
+                    if noun == "user" and ("this" in np["JJ"] or "stored" in np["JJ"]):
                         user = self._stored["user"]
                         if user is None:
                             self.print("I did not remember any user")
                             continue
                     else:
-                        user = self._connector.user(login)
-                    login = user.login
+                        user = self._connector.user(noun)
+                    noun = user.login
                     value = foo(user)
-                    self.print("{} at {}: {}".format(command, login, value if value else "\"Access closed\""))
+                    self.print("{} at {}: {}".format(command, noun, value if value else "\"Access closed\""))
                 except GithubException as ex:
                     if ex.status == 404:
-                        self.print("User with login of \"{}\" not found".format(login))
+                        self.print("User with login of \"{}\" not found".format(noun))
                     elif ex.status == 403:
                         self.print(ex.data["message"])
                     else:
                         raise ex
-                    
-    def count(self, action):
-        for subj in action["SS"]:
-            name = subj["NN"]
-            adjectives = subj["JJ"]
-            foo = None
-            if name == "repos":
-                if "public" in adjectives:
-                    foo = (lambda user: user.public_repos)
-                    command = "public repositories"
-                elif "private" in adjectives:
-                    if "owned" in adjectives:
-                        foo = (lambda user: user.owned_private_repos)
-                        command = "owned private repositories"
+
+    def count(self, vp):
+        for np in vp["NP"]:
+            pps = np["PP"]
+            for np in np["NP"]:
+                noun = simplify_word(np["NN"]) if "NN" in np else None
+                adjectives = simplify_exp(np["JJ"]) if "JJ" in np else []
+                foo = None
+                if noun == "repos":
+                    if "public" in adjectives:
+                        foo = (lambda user: user.public_repos)
+                        command = "public repositories"
+                    elif "private" in adjectives:
+                        if "owned" in adjectives:
+                            foo = (lambda user: user.owned_private_repos)
+                            command = "owned private repositories"
+                        else:
+                            foo = (lambda user: user.total_private_repos)
+                            command = "private repositories"
                     else:
-                        foo = (lambda user: user.total_private_repos)
-                        command = "private repositories"
-                else:
+                        def foo(user: NamedUser):
+                            public = user.public_repos
+                            private = user.total_private_repos
+                            return "{}(public) and {}(private)".format(public, private if private else "\"Access closed\"")
+                        command = "repositories"
+                elif noun == "gists":
+                    if "public" in adjectives:
+                        foo = (lambda user: user.public_gists)
+                        command = "public gists"
+                    elif "private" in adjectives:
+                        foo = (lambda user: user.private_gists)
+                        command = "private gists"
+                    else:
+                        def foo(user: NamedUser):
+                            public = user.public_gists
+                            private = user.private_gists
+                            return "{}(public) and {}(private)".format(public, private if private else "\"Access closed\"")
+
+                        command = "gists"
+                elif noun == "following":
+                    foo = (lambda user: user.following)
+                    command = "following"
+                elif noun == "collaborators":
+                    foo = (lambda user: user.collaborators)
+                    command = "collaborators"
+                elif noun == "followers":
+                    foo = (lambda user: user.followers)
+                    command = "followers"
+                if foo is not None:
+                    self.execute(command, pps, foo)
+
+    def show(self, vp):
+        for np in vp["NP"]:
+            pps = np["PP"]
+            for np in np["NP"]:
+                noun = simplify_word(np["NN"]) if "NN" in np else None
+                adjectives = simplify_exp(np["JJ"]) if "JJ" in np else []
+                foo = None
+                if noun == "repos":
                     def foo(user: NamedUser):
-                        public = user.public_repos
-                        private = user.total_private_repos
-                        return "{}(public) and {}(private)".format(public, private if private else "\"Access closed\"")
+                        repos = list(user.get_repos())
+                        if len(repos) == 0: return None
+                        return ", ".join([repo.name for repo in repos])
+
                     command = "repositories"
-            elif name == "gists":
-                if "public" in adjectives:
-                    foo = (lambda user: user.public_gists)
-                    command = "public gists"
-                elif "private" in adjectives:
-                    foo = (lambda user: user.private_gists)
-                    command = "private gists"
-                else:
+                elif noun == "gists":
                     def foo(user: NamedUser):
-                        public = user.public_gists
-                        private = user.private_gists
-                        return "{}(public) and {}(private)".format(public, private if private else "\"Access closed\"")
+                        gists = list(user.get_gists())
+                        if len(gists) == 0: return None
+                        return ", ".join([gist.id for gist in gists])
+
                     command = "gists"
-            elif name == "following":
-                foo = (lambda user: user.following)
-                command = "following"
-            elif name == "collaborators":
-                foo = (lambda user: user.collaborators)
-                command = "collaborators"
-            elif name == "followers":
-                foo = (lambda user: user.followers)
-                command = "followers"
-            if foo is not None:
-                subjects = [pp for pps in subj["PP"] if pps["IN"].lower() in {"in", "into", "at"} for pp in pps["SS"]]
-                self.execute(command, subjects, foo)
+                elif noun == "keys":
+                    def foo(user: NamedUser):
+                        keys = list(user.get_keys())
+                        if len(keys) == 0: return None
+                        return ", ".join(["(id: " + str(key.id) + " key: " + key.key + ") " for key in keys])
 
-    def show(self, action):
-        for subj in action["SS"]:
-            name = simplify_word(subj["NN"])
-            adjectives = simplify_exp(subj["JJ"])
-            foo = None
-            if name == "repos":
-                def foo(user: NamedUser):
-                    repos = list(user.get_repos())
-                    if len(repos) == 0: return None
-                    return ", ".join([repo.name for repo in repos])
-                command = "repositories"
-            if name == "gists":
-                def foo(user: NamedUser):
-                    gists = list(user.get_gists())
-                    if len(gists) == 0: return None
-                    return ", ".join([gist.id for gist in gists])
-                command = "gists"
-            if name == "keys":
-                def foo(user: NamedUser):
-                    keys = list(user.get_keys())
-                    if len(keys) == 0: return None
-                    return ", ".join(["(id: " + str(key.id) + " key: " + key.key + ") " for key in keys])
-                command = "keys"
-            if name == "orgs":
-                def foo(user: NamedUser):
-                    orgs = list(user.get_orgs())
-                    if len(orgs) == 0: return None
-                    return ", ".join([org.login for org in orgs])
-                command = "organisations"
-            elif name == "url":
-                if "orgs" in adjectives:
-                    foo = (lambda user: user.organizations_url)
-                    command = "organisations url"
-                elif "repos" in adjectives:
-                    foo = (lambda user: user.repos_url)
-                    command = "repositories url"
-                elif "subscriptions" in adjectives:
-                    foo = (lambda user: user.subscriptions_url)
-                    command = "subscriptions url"
-                elif "following" in adjectives:
-                    foo = (lambda user: user.following_url)
-                    command = "following url"
-                elif "gists" in adjectives:
-                    foo = (lambda user: user.gists_url)
-                    command = "gists url"
-                elif "avatar" in adjectives:
-                    foo = (lambda user: user.avatar_url)
-                    command = "avatar url"
-                elif "events" in adjectives:
-                    foo = (lambda user: user.events_url)
-                    command = "events url"
-                elif "followers" in adjectives:
-                    foo = (lambda user: user.followers_url)
-                    command = "events url"
-                elif "starred" in adjectives:
-                    foo = (lambda user: user.starred_url)
-                    command = "starred url"
-                elif "html" in adjectives:
-                    foo = (lambda user: user.url)
-                    command = "html url"
-                else:
-                    foo = (lambda user: user.url)
-                    command = "url"
-            elif name == "following":
-                def foo(user: NamedUser):
-                    followings = list(user.get_following())
-                    if len(followings) == 0: return None
-                    return ", ".join([following.login for following in followings])
-                command = "following"
-            elif name == "name":
-                foo = (lambda user: user.name)
-                command = "name"
-            elif name == "bio":
-                foo = (lambda user: user.bio)
-                command = "bio"
-            elif name == "type":
-                foo = (lambda user: user.type)
-                command = "type"
-            elif name == "email":
-                foo = (lambda user: user.email)
-                command = "email"
-            elif name == "blog":
-                foo = (lambda user: user.blog)
-                command = "blog"
-            elif name == "data":
-                if "raw" in adjectives:
-                    foo = (lambda user: user.raw_data)
-                    command = "raw data"
-            elif name == "etag":
-                foo = (lambda user: user.etag)
-                command = "etag"
-            elif name == "id":
-                if "gravatar" in adjectives:
-                    foo = (lambda user: user.gravatar_id)
-                    command = "gravatar id"
-                else:
-                    foo = (lambda user: user.id)
-                    command = "id"
-            elif name == "company":
-                foo = (lambda user: user.company)
-                command = "company"
-            elif name == "followers":
-                def foo(user: NamedUser):
-                    followers = list(user.get_followers())
-                    if len(followers) == 0: return None
-                    return ", ".join([follower.login for follower in followers])
-                command = "followers"
-            elif name == "plan":
-                if "collaborators" in adjectives:
+                    command = "keys"
+                elif noun == "orgs":
                     def foo(user: NamedUser):
-                        plan = user.plan
-                        if plan is not None: return plan.collaborators
-                    command = "collaborators plan"
-                elif "repos" in adjectives and "private" in adjectives:
-                    def foo(user: NamedUser):
-                        plan = user.plan
-                        if plan is not None: return plan.private_repos
-                    command = "repositories plan"
-                elif "space" in adjectives:
-                    def foo(user: NamedUser):
-                        plan = user.plan
-                        if plan is not None: return plan.space
-                    command = "space plan"
-                elif "name" in adjectives:
-                    def foo(user: NamedUser):
-                        plan = user.plan
-                        if plan is not None: return plan.name
-                    command = "name plan"
-                else:
-                    def foo(user: NamedUser):
-                        plan = user.plan
-                        if plan is not None: return plan.name
-                    command = "plan"
-            elif name == "hireable":
-                foo = (lambda user: user.hireable)
-                command = "hireable"
-            elif name == "login":
-                foo = (lambda user: user.login)
-                command = "login"
-            elif name == "location":
-                foo = (lambda user: user.location)
-                command = "login"
-            elif name == "headers":
-                if "raw" in adjectives:
-                    foo = (lambda user: user.raw_headers)
-                    command = "raw headers"
-            elif name == "date":
-                if "creation" in adjectives:
-                    foo = (lambda user: user.created_at)
-                    command = "creation date"
-                elif "update" in adjectives:
-                    foo = (lambda user: user.updated_at)
-                    command = "update date"
-                elif "modification" in adjectives and "last" in adjectives:
-                    foo = (lambda user: user.last_modified)
-                    command = "modification date"
-            if foo is not None:
-                subjects = [pp for pps in subj["PP"] if pps["IN"].lower() in {"in", "into", "at", "for", "of"} for pp in pps["SS"]]
-                self.execute(command, subjects, foo)
+                        orgs = list(user.get_orgs())
+                        if len(orgs) == 0: return None
+                        return ", ".join([org.login for org in orgs])
 
-    def store(self, action):
-        for subj in action["SS"]:
-            name = simplify_word(subj["NN"])
-            features = [s for pp in subj["PP"] if pp["IN"] in {"with"} for s in pp["SS"]]
-            if name == "user":
-                for feature in features:
-                    if "name" in feature["JJ"] or "login" in feature["JJ"]:
-                        login = feature["NN"]
-                        try:
-                            self._stored["user"] = self._connector.user(login)
-                            self.print("I remember it")
-                        except GithubException as ex:
-                            if ex.status == 404:
-                                self.print("User with login of \"{}\" not found".format(login))
-            elif name == "me":
-                if self._connector.authorised() is not None:
-                    self._stored["user"] = self._connector.user()
-                    self.print("I remember it")
+                    command = "organisations"
+                elif noun == "url":
+                    if "orgs" in adjectives:
+                        foo = (lambda user: user.organizations_url)
+                        command = "organisations url"
+                    elif "repos" in adjectives:
+                        foo = (lambda user: user.repos_url)
+                        command = "repositories url"
+                    elif "subscriptions" in adjectives:
+                        foo = (lambda user: user.subscriptions_url)
+                        command = "subscriptions url"
+                    elif "following" in adjectives:
+                        foo = (lambda user: user.following_url)
+                        command = "following url"
+                    elif "gists" in adjectives:
+                        foo = (lambda user: user.gists_url)
+                        command = "gists url"
+                    elif "avatar" in adjectives:
+                        foo = (lambda user: user.avatar_url)
+                        command = "avatar url"
+                    elif "events" in adjectives:
+                        foo = (lambda user: user.events_url)
+                        command = "events url"
+                    elif "followers" in adjectives:
+                        foo = (lambda user: user.followers_url)
+                        command = "events url"
+                    elif "starred" in adjectives:
+                        foo = (lambda user: user.starred_url)
+                        command = "starred url"
+                    elif "html" in adjectives:
+                        foo = (lambda user: user.url)
+                        command = "html url"
+                    else:
+                        foo = (lambda user: user.url)
+                        command = "url"
+                elif noun == "following":
+                    def foo(user: NamedUser):
+                        followings = list(user.get_following())
+                        if len(followings) == 0: return None
+                        return ", ".join([following.login for following in followings])
+
+                    command = "following"
+                elif noun == "name":
+                    foo = (lambda user: user.name)
+                    command = "name"
+                elif noun == "bio":
+                    foo = (lambda user: user.bio)
+                    command = "bio"
+                elif noun == "type":
+                    foo = (lambda user: user.type)
+                    command = "type"
+                elif noun == "email":
+                    foo = (lambda user: user.email)
+                    command = "email"
+                elif noun == "blog":
+                    foo = (lambda user: user.blog)
+                    command = "blog"
+                elif noun == "data":
+                    if "raw" in adjectives:
+                        foo = (lambda user: user.raw_data)
+                        command = "raw data"
+                elif noun == "etag":
+                    foo = (lambda user: user.etag)
+                    command = "etag"
+                elif noun == "id":
+                    if "gravatar" in adjectives:
+                        foo = (lambda user: user.gravatar_id)
+                        command = "gravatar id"
+                    else:
+                        foo = (lambda user: user.id)
+                        command = "id"
+                elif noun == "company":
+                    foo = (lambda user: user.company)
+                    command = "company"
+                elif noun == "followers":
+                    def foo(user: NamedUser):
+                        followers = list(user.get_followers())
+                        if len(followers) == 0: return None
+                        return ", ".join([follower.login for follower in followers])
+
+                    command = "followers"
+                elif noun == "plan":
+                    if "collaborators" in adjectives:
+                        def foo(user: NamedUser):
+                            plan = user.plan
+                            if plan is not None: return plan.collaborators
+
+                        command = "collaborators plan"
+                    elif "repos" in adjectives and "private" in adjectives:
+                        def foo(user: NamedUser):
+                            plan = user.plan
+                            if plan is not None: return plan.private_repos
+
+                        command = "repositories plan"
+                    elif "space" in adjectives:
+                        def foo(user: NamedUser):
+                            plan = user.plan
+                            if plan is not None: return plan.space
+
+                        command = "space plan"
+                    elif "name" in adjectives:
+                        def foo(user: NamedUser):
+                            plan = user.plan
+                            if plan is not None: return plan.name
+
+                        command = "name plan"
+                    else:
+                        def foo(user: NamedUser):
+                            plan = user.plan
+                            if plan is not None: return plan.name
+
+                        command = "plan"
+                elif noun == "hireable":
+                    foo = (lambda user: user.hireable)
+                    command = "hireable"
+                elif noun == "login":
+                    foo = (lambda user: user.login)
+                    command = "login"
+                elif noun == "location":
+                    foo = (lambda user: user.location)
+                    command = "login"
+                elif noun == "headers":
+                    if "raw" in adjectives:
+                        foo = (lambda user: user.raw_headers)
+                        command = "raw headers"
+                elif noun == "date":
+                    if "creation" in adjectives:
+                        foo = (lambda user: user.created_at)
+                        command = "creation date"
+                    elif "update" in adjectives:
+                        foo = (lambda user: user.updated_at)
+                        command = "update date"
+                    elif "modification" in adjectives and "last" in adjectives:
+                        foo = (lambda user: user.last_modified)
+                        command = "modification date"
+                if foo is not None:
+                    self.execute(command, pps, foo)
+
+    def store(self, vp):
+        for nps in vp["NP"]:
+            for np in nps["NP"]:
+                if "NN" in np:
+                    noun = simplify_word(np["NN"])
                 else:
-                    self.print("I don't know who are you")
-            elif name == "repo":
-                pass
-            elif name == "gist":
-                pass
+                    continue
+                if noun == "user":
+                    features = [np for pp in nps["PP"] if pp["IN"] == "with" for np in pp["NP"]]
+                    for feature in features:
+                        if "NN" in feature:
+                            noun = simplify_word(feature["NN"])
+                            adjectives = simplify_exp(feature["JJ"])
+                        else:
+                            continue
+                        if "name" in adjectives or "login" in adjectives:
+                            login = noun
+                            try:
+                                self._stored["user"] = self._connector.user(login)
+                                self.print("I remember it")
+                            except GithubException as ex:
+                                if ex.status == 404:
+                                    self.print("User with login of \"{}\" not found".format(login))
+                elif noun == "me":
+                    if self._connector.authorised() is not None:
+                        self._stored["user"] = self._connector.user()
+                        self.print("I remember it")
+                    else:
+                        self.print("I don't know who are you")
+                elif noun == "repo":
+                    pass
+                elif noun == "gist":
+                    pass
+

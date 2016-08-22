@@ -8,11 +8,12 @@ class GitConnector:
         self._git = Github()
         self._authorised = None
 
-    def authorise(self, login: str, pword: str) -> str:
+    def authorise(self, login: str, pword: str) -> bool:
         self._git = Github(login, pword)
         try:
             self._authorised = self._git.get_user().login
         except BadCredentialsException:
+            self._git = Github()
             return False
         else:
             return True

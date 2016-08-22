@@ -1,4 +1,5 @@
 import os
+from copy import deepcopy
 
 from nltk.parse.stanford import StanfordParser, StanfordDependencyParser
 
@@ -23,6 +24,10 @@ word_level = {
 }
 
 conjunction_level = {"CC", ","}
+
+belongs_words = {"in", "into", "at", "for", "of", "'s"}
+
+fixable_sentence = {"NP", "FRAG", "UCP"}
 
 
 def _subtrees(tree, labels: list) -> list:
@@ -140,8 +145,10 @@ def _parse_np(tree) -> (list, list):
                 rpp.append(rp)
         nps.extend(_np)
         pps.extend(_pp)
-        if len(pps) == 0: result.extend(nps)
-        else: result.append({"NP": nps, "PP": pps})
+        if len(pps) == 0:
+            result.extend(nps)
+        else:
+            result.append({"NP": nps, "PP": pps})
     return result, rpp
 
 
@@ -151,17 +158,24 @@ def _parse_sentence(tree) -> dict:
         sentence["NP"].extend(_parse_np(np)[0])
     for vp in _trees(tree, ["VP"]):
         for act in [vb[0] for vb in _subtrees(vp, ["VB", "VBD", "VBG", "VBN", "VBP", "VBZ"])]:
-            vps = {"VB": act, "NP": [], "PP": []}
+            vps = {"VB": act}
+            pps = []
             (_np, _rpp) = _parse_np(vp)
             for rp in _rpp:
                 if rp["DEPTH"] == 1: del rp["DEPTH"]
-                vps["PP"].append(rp)
+                pps.append(rp)
             (_pp, _rpp) = _parse_pp(vp)
             for rp in _rpp:
                 if rp["DEPTH"] == 1: del rp["DEPTH"]
-                vps["PP"].append(rp)
-            vps["NP"].extend(_np)
-            vps["PP"].extend(_pp)
+                pps.append(rp)
+            pps.extend(_pp)
+            if len(pps) > 0: vps["NP"] = [{"NP": _np, "PP": pps}]
+            else: vps["NP"] = _np
+            for np in vps["NP"]:
+                if "NN" in np:
+                    np["NP"] = [deepcopy(np)]
+                    np["PP"] = []
+                    del np["NN"], np["JJ"]
             sentence["VP"].append(vps)
     return sentence
 
@@ -169,14 +183,15 @@ def _parse_sentence(tree) -> dict:
 def parse(string: str) -> dict:
     if len(string.split()) == 0: return None
     sp_tree = next(sp.raw_parse(string))[0]
-    if sp_tree.label() in ["NP", "FRAG"]:
+    if sp_tree.label() in {"NP", "FRAG"}:
         string = "show " + string
         sp_tree = next(sp.raw_parse(string))[0]
-    print(sp_tree)
+    # print(sp_tree)
     return _parse_sentence(sp_tree) if sp_tree.label() == "S" else None
 
 
 def tree(root: dict, shift=0) -> str:
+    if root is None: return 'None'
     result = ["{\n"]
     for i, (key, col) in enumerate(sorted(root.items())):
         result.append("\t" * shift)
@@ -186,12 +201,16 @@ def tree(root: dict, shift=0) -> str:
         else:
             result.append("[")
             for j, value in enumerate(col):
-                if isinstance(value, dict): result.append(tree(value, shift + 1))
-                else: result.append(str(value))
+                if isinstance(value, dict):
+                    result.append(tree(value, shift + 1))
+                else:
+                    result.append(str(value))
                 if j < len(col) - 1: result.append(", ")
             result.append("]")
-        if i < len(root) - 1: result.append(",\n")
-        else: result.append("\n")
+        if i < len(root) - 1:
+            result.append(",\n")
+        else:
+            result.append("\n")
     result.append("\t" * shift)
     result.append("}")
     return "".join(result)
