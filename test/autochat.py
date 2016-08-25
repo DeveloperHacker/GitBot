@@ -8,7 +8,7 @@ if __name__ == "__main__":
     DELAY = 5
 
     chat = [
-        "show a id developerhacker's repo with name GitBot",
+        "show a id at developerhacker's repo with name GitBot",
         "developerhacker's repos",
         "repos of jgahkjgdskjgas",
         "count developerhacker's private gists ",

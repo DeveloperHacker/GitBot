@@ -3,7 +3,7 @@ import IO
 from GitConnector import GitConnector
 from github import GithubException
 from github.NamedUser import NamedUser
-from src.Simplifies import simplify_word, simplify_exp
+from src.Simplifier import simplify_word, simplify_exp
 
 
 def format_nick(nick, max_len) -> str:
