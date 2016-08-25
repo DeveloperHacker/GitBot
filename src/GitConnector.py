@@ -1,6 +1,9 @@
 
 from github import Github
+from github.Gist import Gist
 from github.GithubException import BadCredentialsException
+from github.NamedUser import NamedUser
+from github.Repository import Repository
 
 
 class GitConnector:
@@ -18,15 +21,21 @@ class GitConnector:
         else:
             return True
 
-    def unlogin(self):
+    def logout(self):
         self._authorised = None
         self._git = Github()
 
     def authorised(self) -> str:
         return self._authorised
 
-    def user(self, login=None):
+    def user(self, login=None) -> NamedUser:
         if self._authorised and (not login or login.lower() == self._authorised.lower()):
             return self._git.get_user()
         else:
             return self._git.get_user(login)
+
+    def repo(self, id) -> Repository:
+        return self._git.get_repo(id)
+
+    def gist(self, id) -> Gist:
+        return self._git.get_gist(id)

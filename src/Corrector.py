@@ -1,14 +1,18 @@
 import os
+import IO
 from copy import deepcopy
 
 from nltk.parse.stanford import StanfordParser, StanfordDependencyParser
 
+
 stanford_dir = os.getenv("HOME") + "/NLP"
 os.environ["STANFORD_DIR"] = stanford_dir
-os.environ["STANFORD_MODELS"] = "{0}/stanford-postagger-full/models:{0}/stanford-ner/classifiers".format(stanford_dir)
-os.environ[
-    "CLASSPATH"] = "{0}/stanford-postagger-full/stanford-postagger.jar:{0}/stanford-ner/stanford-ner.jar:{0}/stanford-parser-full/stanford-parser.jar:{0}/stanford-parser-full/stanford-parser-3.5.2-models.jar".format(
-        stanford_dir)
+os.environ["STANFORD_MODELS"] = "{0}/stanford-postagger-full/models:" \
+                                "{0}/stanford-ner/classifiers".format(stanford_dir)
+os.environ["CLASSPATH"] = "{0}/stanford-postagger-full/stanford-postagger.jar:" \
+                          "{0}/stanford-ner/stanford-ner.jar:" \
+                          "{0}/stanford-parser-full/stanford-parser.jar:" \
+                          "{0}/stanford-parser-full/stanford-parser-3.5.2-models.jar".format(stanford_dir)
 
 sp = StanfordParser(model_path="edu/stanford/nlp/models/lexparser/englishPCFG.ser.gz")
 sdp = StanfordDependencyParser(model_path="edu/stanford/nlp/models/lexparser/englishPCFG.ser.gz")
@@ -101,17 +105,36 @@ def _parse_pp(tree) -> (list, list):
     return result, rpp
 
 
+def combine(inp: list) -> list:
+    result = inp
+    while len(result) > 1:
+        result[0] = [i + j for i in result[0] for j in result[1]]
+        del result[1]
+    return result[0]
+
+
 def _parse_np(tree) -> (list, list):
     result = []
     rpp = []
     for np in _subtrees(tree, ["NP"]):
         collocations = [[]]
+        jjss = [[[]]]
         for node in np:
             label = node.label()
             if label in conjunction_level:
                 collocations.append([])
             elif label in word_level:
                 collocations[-1].append(node)
+            elif label == "ADJP":
+                jjs = [[]]
+                for jj in node:
+                    label = jj.label()
+                    if label in conjunction_level:
+                        jjs.append([])
+                    elif label in word_level:
+                        jjs[-1].append(jj[0])
+                jjss.append([jj for jj in jjs if len(jj) != 0])
+        jjss = [jjs for jjs in jjss if len(jjs) != 0]
         nps = []
         pps = []
         for collocation in collocations:
@@ -127,6 +150,7 @@ def _parse_np(tree) -> (list, list):
                 rpp.append({"IN": _in[0], "NP": [_parse_collocation(_collocation)], "DEPTH": 2})
             else:
                 nps.append(_parse_collocation(_collocation))
+        nps = [{"NN": np["NN"], "JJ": (np["JJ"] + jjs)} for np in nps for jjs in combine(jjss)]
         (_np, _rpp) = _parse_np(np)
         for rp in _rpp:
             rp["DEPTH"] -= 1
@@ -157,26 +181,28 @@ def _parse_sentence(tree) -> dict:
     for np in _subtrees(tree, ["NP"]):
         sentence["NP"].extend(_parse_np(np)[0])
     for vp in _trees(tree, ["VP"]):
-        for act in [vb[0] for vb in _subtrees(vp, ["VB", "VBD", "VBG", "VBN", "VBP", "VBZ"])]:
-            vps = {"VB": act}
-            pps = []
-            (_np, _rpp) = _parse_np(vp)
-            for rp in _rpp:
-                if rp["DEPTH"] == 1: del rp["DEPTH"]
-                pps.append(rp)
-            (_pp, _rpp) = _parse_pp(vp)
-            for rp in _rpp:
-                if rp["DEPTH"] == 1: del rp["DEPTH"]
-                pps.append(rp)
-            pps.extend(_pp)
-            if len(pps) > 0: vps["NP"] = [{"NP": _np, "PP": pps}]
-            else: vps["NP"] = _np
-            for np in vps["NP"]:
-                if "NN" in np:
-                    np["NP"] = [deepcopy(np)]
-                    np["PP"] = []
-                    del np["NN"], np["JJ"]
-            sentence["VP"].append(vps)
+        vps = {}
+        pps = []
+        (_np, _rpp) = _parse_np(vp)
+        for rp in _rpp:
+            if rp["DEPTH"] == 1: del rp["DEPTH"]
+            pps.append(rp)
+        (_pp, _rpp) = _parse_pp(vp)
+        for rp in _rpp:
+            if rp["DEPTH"] == 1: del rp["DEPTH"]
+            pps.append(rp)
+        pps.extend(_pp)
+        if len(pps) > 0:
+            vps["NP"] = [{"NP": _np, "PP": pps}]
+        else:
+            vps["NP"] = _np
+        for np in vps["NP"]:
+            if "NN" in np:
+                np["NP"] = [deepcopy(np)]
+                np["PP"] = []
+                del np["NN"], np["JJ"]
+        vps["VB"] = [vb[0] for vb in _subtrees(vp, ["VB", "VBD", "VBG", "VBN", "VBP", "VBZ"])]
+        sentence["VP"].append(vps)
     return sentence
 
 
@@ -186,7 +212,7 @@ def parse(string: str) -> dict:
     if sp_tree.label() in {"NP", "FRAG"}:
         string = "show " + string
         sp_tree = next(sp.raw_parse(string))[0]
-    # print(sp_tree)
+    IO.writeln(sp_tree)
     return _parse_sentence(sp_tree) if sp_tree.label() == "S" else None
 
 

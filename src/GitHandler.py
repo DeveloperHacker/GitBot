@@ -1,12 +1,10 @@
-from Tools.scripts.treesync import raw_input
-from getpass import getpass
-
+import Corrector
+import IO
+from GitConnector import GitConnector
 from github import GithubException
 from github.NamedUser import NamedUser
 
-import Corrector
-from GitConnector import GitConnector
-from Simplifies import simplify_word, simplify_exp
+from src.Simplifies import simplify_word, simplify_exp
 
 
 def format_nick(nick, max_len) -> str:
@@ -22,7 +20,7 @@ class GitHandler:
             "show": self.show,
             "store": self.store,
             "login": self.login,
-            "unlogin": self.unlogin,
+            "unlogin": self.logout,
             "close": self.close
         }
         self._stored = {
@@ -44,13 +42,13 @@ class GitHandler:
         self._connect = False
 
     def print(self, obj):
-        print(format_nick(self._bot_nick, self._max_nick_len) + "  ::  " + str(obj))
+        IO.writeln(format_nick(self._bot_nick, self._max_nick_len) + "  ::  " + str(obj))
 
     def read(self) -> str:
-        return raw_input(format_nick(self._nick, self._max_nick_len) + "  ::  ")[:-1]
+        return IO.readln(format_nick(self._nick, self._max_nick_len) + "  ::  ")[:-1]
 
     def hide_read(self) -> str:
-        return getpass(format_nick(self._nick, self._max_nick_len) + "  ::  ")
+        return IO.hreadln(format_nick(self._nick, self._max_nick_len) + "  ::  ")
 
     def handle(self):
         data = self.read()
@@ -58,8 +56,9 @@ class GitHandler:
         # print(Corrector.tree(sentence))
         if sentence is None: return
         for vp in sentence["VP"]:
-            verb = simplify_word(vp["VB"])
-            if verb in self._commands: self._commands[verb](vp)
+            for vb in vp["VB"]:
+                vb = simplify_word(vb)
+                if vb in self._commands: self._commands[vb](vp)
 
     def login(self, _):
         if self._connector.authorised():
@@ -75,9 +74,9 @@ class GitHandler:
             else:
                 self._nick = self._connector.authorised()
 
-    def unlogin(self, _):
+    def logout(self, _):
         if self._connector.authorised():
-            self._connector.unlogin()
+            self._connector.logout()
             self._nick = self._default_nick
 
     def close(self, _):
