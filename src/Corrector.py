@@ -1,7 +1,6 @@
 import os
 import IO
 from copy import deepcopy
-
 from nltk.parse.stanford import StanfordParser, StanfordDependencyParser
 
 

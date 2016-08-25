@@ -1,6 +1,5 @@
 import os
 import sys
-
 import fcntl
 from getpass import getpass
 

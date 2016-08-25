@@ -1,8 +1,6 @@
 import re
-
 import IO
 import FlatMap
-
 import Corrector
 from GitConnector import GitConnector
 

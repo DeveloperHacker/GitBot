@@ -7,7 +7,7 @@ synonyms = {
     "project": "repo",
     "repositories": "repos",
     "projects": "repos",
-    "storage": "repos",
+    "storage": "repo",
     "recruited": "hireable",
     "organisations": "orgs",
     "remember": "store",

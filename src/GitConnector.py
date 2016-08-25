@@ -1,4 +1,3 @@
-
 from github import Github
 from github.Gist import Gist
 from github.GithubException import BadCredentialsException

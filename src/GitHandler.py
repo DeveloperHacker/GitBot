@@ -3,7 +3,6 @@ import IO
 from GitConnector import GitConnector
 from github import GithubException
 from github.NamedUser import NamedUser
-
 from src.Simplifies import simplify_word, simplify_exp
 
 
