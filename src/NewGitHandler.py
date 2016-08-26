@@ -65,7 +65,9 @@ class GitHandler:
         return IO.readln(format_nick(self._nick, self._max_nick_len) + "  ::  ")[:-1]
 
     def _hide_read(self) -> str:
-        return IO.hreadln(format_nick(self._nick, self._max_nick_len) + "  ::  ")
+        # not work in pycharm console
+        return IO.readln(format_nick(self._nick, self._max_nick_len) + "  ::  ")[:-1]
+        # return IO.hreadln(format_nick(self._nick, self._max_nick_len) + "  ::  ")
     
     def _handle(self):
         data = self._read()
@@ -73,6 +75,7 @@ class GitHandler:
 
         IO.writeln(Corrector.tree(parse))
 
+        if parse is None: return
         for vp in parse["VP"]:
             for node in vp["NP"]:
                 args = self._build(node, [])

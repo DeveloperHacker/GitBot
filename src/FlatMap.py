@@ -42,7 +42,8 @@ def create(self: GitHandler) -> dict:
         ],
         "user": [
             {"JJ": [], "F": [
-                {"A": ["str"], "B": (lambda login: {"T": ["user"], "O": self.connector.user(login)})}
+                {"A": ["str"], "B": (lambda login: {"T": ["user"], "O": self.connector.user(login)})},
+                {"A": ["login"], "B": (lambda login: {"T": ["user"], "O": self.connector.user(login)})}
             ]},
             {"JJ": ["this"], "F": [
                 {"A": [], "B": (lambda: {"T": ["user"], "O": self.stored["user"]})}
@@ -51,6 +52,7 @@ def create(self: GitHandler) -> dict:
         "repo": [
             {"JJ": [], "F": [
                 {"A": ["user", "str"], "B": (lambda user, name: {"T": ["url"], "O": user.get_repo(name)})},
+                {"A": ["user", "name"], "B": (lambda user, name: {"T": ["url"], "O": user.get_repo(name)})},
                 {"A": ["int"], "B": (lambda _id: {"T": ["repo"], "O": self.connector.repo(_id)})}
             ]},
             {"JJ": ["this"], "F": [
@@ -59,7 +61,8 @@ def create(self: GitHandler) -> dict:
         ],
         "gist": [
             {"JJ": [], "F": [
-                {"A": ["int"], "B": (lambda _id: {"T": ["gist"], "O": self.connector.gist(_id)})}
+                {"A": ["int"], "B": (lambda _id: {"T": ["gist"], "O": self.connector.gist(_id)})},
+                {"A": ["id"], "B": (lambda _id: {"T": ["gist"], "O": self.connector.gist(_id)})}
             ]},
             {"JJ": ["this"], "F": [
                 {"A": [], "B": (lambda stored: {"T": ["gist"], "O": stored["gist"]})}

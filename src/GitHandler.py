@@ -3,7 +3,7 @@ import IO
 from GitConnector import GitConnector
 from github import GithubException
 from github.NamedUser import NamedUser
-from src.Simplifier import simplify_word, simplify_exp
+from Simplifier import simplify_word, simplify_exp
 
 
 def format_nick(nick, max_len) -> str:
@@ -47,12 +47,16 @@ class GitHandler:
         return IO.readln(format_nick(self._nick, self._max_nick_len) + "  ::  ")[:-1]
 
     def hide_read(self) -> str:
-        return IO.hreadln(format_nick(self._nick, self._max_nick_len) + "  ::  ")
+        # not work in pycharm console
+        return IO.readln(format_nick(self._nick, self._max_nick_len) + "  ::  ")[:-1]
+        # return IO.hreadln(format_nick(self._nick, self._max_nick_len) + "  ::  ")
 
     def handle(self):
         data = self.read()
         sentence = Corrector.parse(data)
-        # print(Corrector.tree(sentence))
+
+        IO.writeln(Corrector.tree(sentence))
+
         if sentence is None: return
         for vp in sentence["VP"]:
             for vb in vp["VB"]:
