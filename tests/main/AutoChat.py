@@ -1,10 +1,10 @@
 import os
-import IO
-import subprocess
 import time
+import subprocess
+from src.main import IO
 
-if __name__ == "__main__":
 
+class AutoChat():
     DELAY = 5
 
     chat = [
@@ -32,17 +32,17 @@ if __name__ == "__main__":
         "disconnect"
     ]
 
-    directory = "/".join(os.getcwd().split("/")[:-1]) + "/src/__init__.py"
-    IO.writeln(directory)
-
-    start = time.time()
-    process = subprocess.Popen("python " + directory, shell=True, stdin=subprocess.PIPE)
-    for mes in chat:
-        time.sleep(DELAY)
-        process.stdin.write(bytes(mes + "\n", "utf8"))
-        process.stdin.flush()
-        IO.writeln(mes)
-    time.sleep(DELAY)
-    end = time.time()
-    IO.writeln(time.strftime("\nruntime: %Mm %Ss", time.gmtime(3 * 3600 + end - start)))
-    process.kill()
+    @staticmethod
+    def run():
+        directory = "/".join(os.path.realpath(__file__).split("/")[:-3]) + "/src/run.py"
+        start = time.time()
+        process = subprocess.Popen("python " + directory, shell=True, stdin=subprocess.PIPE)
+        for mes in AutoChat.chat:
+            time.sleep(AutoChat.DELAY)
+            process.stdin.write(bytes(mes + "\n", "utf8"))
+            process.stdin.flush()
+            IO.writeln(mes)
+        time.sleep(AutoChat.DELAY)
+        end = time.time()
+        IO.writeln(time.strftime("\nruntime: %Mm %Ss", time.gmtime(3 * 3600 + end - start)))
+        process.kill()

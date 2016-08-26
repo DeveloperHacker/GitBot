@@ -1,8 +1,8 @@
 import re
-import IO
-import FlatMap
-import Corrector
-from GitConnector import GitConnector
+from src.main.nlp import Corrector
+from src.main import FlatMap
+from src.main.GitConnector import Connector
+from src.main import IO
 
 
 def format_nick(nick, max_len) -> str:
@@ -31,7 +31,7 @@ def string(obj, _type="") -> str:
 class GitHandler:
     def __init__(self, bot_nick="Bot", default_nick="User", max_nick_len=20):
         self._connect = False
-        self.connector = GitConnector()
+        self.connector = Connector()
         self.stored = {
             "user": None,
             "repo": None,
@@ -62,12 +62,11 @@ class GitHandler:
         IO.writeln(format_nick(self._bot_nick, self._max_nick_len) + "  ::  " + str(obj))
 
     def _read(self) -> str:
-        return IO.readln(format_nick(self._nick, self._max_nick_len) + "  ::  ")[:-1]
+        return IO.readln(format_nick(self._nick, self._max_nick_len) + "  ::  ")
 
     def _hide_read(self) -> str:
-        # not work in pycharm console
-        return IO.readln(format_nick(self._nick, self._max_nick_len) + "  ::  ")[:-1]
-        # return IO.hreadln(format_nick(self._nick, self._max_nick_len) + "  ::  ")
+        # return IO.readln(format_nick(self._nick, self._max_nick_len) + "  ::  ")
+        return IO.hreadln(format_nick(self._nick, self._max_nick_len) + "  ::  ") # not work in pycharm console
     
     def _handle(self):
         data = self._read()

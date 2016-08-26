@@ -16,7 +16,7 @@ def writeln(obj):
 
 def readln(prompt: str) -> str:
     write(prompt)
-    return sys.stdin.readline()
+    return sys.stdin.readline()[:-1]
 
 
 def read(prompt: str) -> str:

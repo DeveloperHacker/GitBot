@@ -5,7 +5,7 @@ from github.NamedUser import NamedUser
 from github.Repository import Repository
 
 
-class GitConnector:
+class Connector:
     def __init__(self):
         self._git = Github()
         self._authorised = None

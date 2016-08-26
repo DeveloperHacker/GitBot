@@ -1,17 +1,6 @@
-import os
-import IO
 from copy import deepcopy
 from nltk.parse.stanford import StanfordParser, StanfordDependencyParser
-
-
-stanford_dir = os.getenv("HOME") + "/NLP"
-os.environ["STANFORD_DIR"] = stanford_dir
-os.environ["STANFORD_MODELS"] = "{0}/stanford-postagger-full/models:" \
-                                "{0}/stanford-ner/classifiers".format(stanford_dir)
-os.environ["CLASSPATH"] = "{0}/stanford-postagger-full/stanford-postagger.jar:" \
-                          "{0}/stanford-ner/stanford-ner.jar:" \
-                          "{0}/stanford-parser-full/stanford-parser.jar:" \
-                          "{0}/stanford-parser-full/stanford-parser-3.5.2-models.jar".format(stanford_dir)
+from src.main import IO
 
 sp = StanfordParser(model_path="edu/stanford/nlp/models/lexparser/englishPCFG.ser.gz")
 sdp = StanfordDependencyParser(model_path="edu/stanford/nlp/models/lexparser/englishPCFG.ser.gz")

@@ -1,7 +1,4 @@
-from NewGitHandler import GitHandler
-
-
-def create(self: GitHandler) -> dict:
+def create(self) -> dict:
     flat_map = {
         "repos": [
             {"JJ": [], "F": [

@@ -1,9 +1,10 @@
-import Corrector
-import IO
-from GitConnector import GitConnector
+from src.main.GitConnector import Connector
+from src.main.Simplifier import simplify_word, simplify_exp
 from github import GithubException
 from github.NamedUser import NamedUser
-from Simplifier import simplify_word, simplify_exp
+from src.main.nlp import Corrector
+
+from src.main import IO
 
 
 def format_nick(nick, max_len) -> str:
@@ -13,7 +14,7 @@ def format_nick(nick, max_len) -> str:
 class GitHandler:
     def __init__(self, bot_nick="Bot", default_nick="User", max_nick_len=20):
         self._connect = False
-        self._connector = GitConnector()
+        self._connector = Connector()
         self._commands = {
             "count": self.count,
             "show": self.show,
@@ -44,12 +45,11 @@ class GitHandler:
         IO.writeln(format_nick(self._bot_nick, self._max_nick_len) + "  ::  " + str(obj))
 
     def read(self) -> str:
-        return IO.readln(format_nick(self._nick, self._max_nick_len) + "  ::  ")[:-1]
+        return IO.readln(format_nick(self._nick, self._max_nick_len) + "  ::  ")
 
-    def hide_read(self) -> str:
-        # not work in pycharm console
-        return IO.readln(format_nick(self._nick, self._max_nick_len) + "  ::  ")[:-1]
-        # return IO.hreadln(format_nick(self._nick, self._max_nick_len) + "  ::  ")
+    def _hide_read(self) -> str:
+        # return IO.readln(format_nick(self._nick, self._max_nick_len) + "  ::  ")
+        return IO.hreadln(format_nick(self._nick, self._max_nick_len) + "  ::  ") # not work in pycharm console
 
     def handle(self):
         data = self.read()
