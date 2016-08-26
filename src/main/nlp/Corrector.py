@@ -1,6 +1,6 @@
 from copy import deepcopy
 from nltk.parse.stanford import StanfordParser, StanfordDependencyParser
-from src.main import IO
+from src import IO
 
 sp = StanfordParser(model_path="edu/stanford/nlp/models/lexparser/englishPCFG.ser.gz")
 sdp = StanfordDependencyParser(model_path="edu/stanford/nlp/models/lexparser/englishPCFG.ser.gz")
@@ -104,7 +104,7 @@ def combine(inp: list) -> list:
 def _parse_np(tree) -> (list, list):
     result = []
     rpp = []
-    for np in _subtrees(tree, ["NP"]):
+    for np in _subtrees(tree, ["NP", "S"]):
         collocations = [[]]
         jjss = [[[]]]
         for node in np:
@@ -166,7 +166,7 @@ def _parse_np(tree) -> (list, list):
 
 def _parse_sentence(tree) -> dict:
     sentence = {"NP": [], "VP": []}
-    for np in _subtrees(tree, ["NP"]):
+    for np in _subtrees(tree, ["NP", "S"]):
         sentence["NP"].extend(_parse_np(np)[0])
     for vp in _trees(tree, ["VP"]):
         vps = {}
@@ -197,7 +197,7 @@ def _parse_sentence(tree) -> dict:
 def parse(string: str) -> dict:
     if len(string.split()) == 0: return None
     sp_tree = next(sp.raw_parse(string))[0]
-    if sp_tree.label() in {"NP", "FRAG"}:
+    if sp_tree.label() in fixable_sentence:
         string = "show " + string
         sp_tree = next(sp.raw_parse(string))[0]
 

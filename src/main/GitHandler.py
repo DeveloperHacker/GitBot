@@ -1,10 +1,9 @@
-from src.main.GitConnector import Connector
-from src.main.Simplifier import simplify_word, simplify_exp
 from github import GithubException
 from github.NamedUser import NamedUser
+from src import IO
+from src.main.GitConnector import Connector
+from src.main import Simplifier
 from src.main.nlp import Corrector
-
-from src.main import IO
 
 
 def format_nick(nick, max_len) -> str:
@@ -47,9 +46,9 @@ class GitHandler:
     def read(self) -> str:
         return IO.readln(format_nick(self._nick, self._max_nick_len) + "  ::  ")
 
-    def _hide_read(self) -> str:
-        # return IO.readln(format_nick(self._nick, self._max_nick_len) + "  ::  ")
-        return IO.hreadln(format_nick(self._nick, self._max_nick_len) + "  ::  ") # not work in pycharm console
+    def hide_read(self) -> str:
+        return IO.readln(format_nick(self._nick, self._max_nick_len) + "  ::  ")
+        # return IO.hreadln(format_nick(self._nick, self._max_nick_len) + "  ::  ") # not work in pycharm console
 
     def handle(self):
         data = self.read()
@@ -60,7 +59,7 @@ class GitHandler:
         if sentence is None: return
         for vp in sentence["VP"]:
             for vb in vp["VB"]:
-                vb = simplify_word(vb)
+                vb = Simplifier.simplify_word(vb)
                 if vb in self._commands: self._commands[vb](vp)
 
     def login(self, _):
@@ -99,7 +98,7 @@ class GitHandler:
             self.print("{}: {}".format(command, value if value else "\"Access closed\""))
         else:
             for np in nps:
-                if "NN" in np: noun = simplify_word(np["NN"])
+                if "NN" in np: noun = Simplifier.simplify_word(np["NN"])
                 else: continue
                 try:
                     if noun == "user" and ("this" in np["JJ"] or "stored" in np["JJ"]):
@@ -124,8 +123,8 @@ class GitHandler:
         for np in vp["NP"]:
             pps = np["PP"]
             for np in np["NP"]:
-                noun = simplify_word(np["NN"]) if "NN" in np else None
-                adjectives = simplify_exp(np["JJ"]) if "JJ" in np else []
+                noun = Simplifier.simplify_word(np["NN"]) if "NN" in np else None
+                adjectives = Simplifier.simplify_exp(np["JJ"]) if "JJ" in np else []
                 foo = None
                 if noun == "repos":
                     if "public" in adjectives:
@@ -174,8 +173,8 @@ class GitHandler:
         for np in vp["NP"]:
             pps = np["PP"]
             for np in np["NP"]:
-                noun = simplify_word(np["NN"]) if "NN" in np else None
-                adjectives = simplify_exp(np["JJ"]) if "JJ" in np else []
+                noun = Simplifier.simplify_word(np["NN"]) if "NN" in np else None
+                adjectives = Simplifier.simplify_exp(np["JJ"]) if "JJ" in np else []
                 foo = None
                 if noun == "repos":
                     def foo(user: NamedUser):
@@ -346,15 +345,15 @@ class GitHandler:
         for nps in vp["NP"]:
             for np in nps["NP"]:
                 if "NN" in np:
-                    noun = simplify_word(np["NN"])
+                    noun = Simplifier.simplify_word(np["NN"])
                 else:
                     continue
                 if noun == "user":
                     features = [np for pp in nps["PP"] if pp["IN"] == "with" for np in pp["NP"]]
                     for feature in features:
                         if "NN" in feature:
-                            noun = simplify_word(feature["NN"])
-                            adjectives = simplify_exp(feature["JJ"])
+                            noun = Simplifier.simplify_word(feature["NN"])
+                            adjectives = Simplifier.simplify_exp(feature["JJ"])
                         else:
                             continue
                         if "name" in adjectives or "login" in adjectives:

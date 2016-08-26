@@ -1,7 +1,7 @@
 import os
-import time
 import subprocess
-from src.main import IO
+import time
+from src import IO
 
 
 class AutoChat():
