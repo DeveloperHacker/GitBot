@@ -130,24 +130,30 @@ class GitHandler:
     @staticmethod
     def string(obj, _type="") -> str:
         if _type == "user":
+            if obj is None: return "User ───║───"
             login = GitHandler.string(obj.login, "login")
             name = GitHandler.string(obj.name, "name")
             email = GitHandler.string(obj.email, "email")
-            return "{}({}) {}".format(login, name if obj.name else "───║───", email if obj.email else "───║───")
+            return "{}({}) {}".format(login, name, email)
         elif _type == "repo":
+            if obj is None: return "Repo ───║───"
             login = GitHandler.string(obj.ovner.login, "login")
             name = GitHandler.string(obj.name, "name")
             _id = GitHandler.string(obj.id, "id")
             return "{}'s {}({})".format(login, name, _id)
         elif _type == "gist":
+            if obj is None: return "Gist ───║───"
             login = GitHandler.string(obj.ovner.login, "login")
             _id = GitHandler.string(obj.id, "id")
             return "{}'s gist id:{}".format(login, _id)
         elif _type == "name":
+            if obj is None: return "───║───"
             return str(obj).title()
         elif _type == "email":
+            if obj is None: return "<───║───>"
             return '<' + str(obj) + '>'
         elif _type == "str":
+            if obj is None: return '"───║───"'
             return '"' + str(obj) + '"'
         else:
             return str(obj)

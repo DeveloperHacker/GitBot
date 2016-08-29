@@ -10,6 +10,10 @@ phrase_level = {
     "WHADJP", "WHAVP", "WHNP", "WHPP", "X"
 }
 
+clause_level = {
+    "S", "SBAR", "SBARQ", "SINV", "SQ"
+}
+
 word_level = {
     "CC", "CD", "DT", "EX", "FW", "IN", "JJ", "JJR", "JJS", "LS", "MD", "NN", "NNS", "NNP", "NNPS", "PDT", "POS", "PRP",
     "PRP$", "RB", "RBR", "RBS", "RP", "SYM", "TO", "UH", "VB", "VBD", "VBG", "VBP", "VBZ", "WDT", "WP", "WP$", "WRB"
@@ -19,7 +23,7 @@ conjunction_level = {"CC", ","}
 
 belongs_words = {"in", "into", "at", "for", "of", "'s"}
 
-fixable_sentence = {"NP", "FRAG", "UCP"}
+fixable_sentence = {"NP", "FRAG", "UCP", "PP", "ADJP"}
 
 
 def _subtrees(tree, labels: list) -> list:
@@ -31,29 +35,8 @@ def _trees(tree, labels: list) -> list:
     return _subtrees(tree, labels) + trees
 
 
-def _parse_collocations(tree) -> list:
-    nps = [[]]
-    for node in tree:
-        label = node.label()
-        if label in conjunction_level:
-            nps.append([])
-        elif label in word_level:
-            nps[-1].append(node[0])
-    sdp_trees = [next(sdp.raw_parse(" ".join(words))) for words in nps if len(words) > 0]
-    collocations = []
-    for sdp_tree in sdp_trees:
-        subject = {"NN": None, "JJ": []}
-        for i, node in sdp_tree.nodes.items():
-            if node["word"] is None: continue
-            if node["head"] == 0:
-                subject["NN"] = node["word"]
-            else:
-                subject["JJ"].append(node["word"])
-        collocations.append(subject)
-    return collocations
-
-
 def _parse_collocation(collocation: list) -> dict:
+    if len(collocation) == 0: raise Exception()
     if len(collocation) == 1: return {"NN": collocation[0], "JJ": []}
     np = {"NN": None, "JJ": []}
     for i, node in next(sdp.raw_parse(" ".join(collocation))).nodes.items():
@@ -69,7 +52,10 @@ def _parse_pp(tree) -> (list, list):
     result = []
     rpp = []
     for pp in _subtrees(tree, ["PP"]):
-        if len(_subtrees(pp, ["PP"])) != 0:
+        _in = [_in[0] for _in in _subtrees(pp, ["IN"])]
+        len_pps = len(_subtrees(pp, ["PP"]))
+        len_in = len(_in)
+        if len_pps > 0 and len_in == 0:
             (_pp, _rpp) = _parse_pp(pp)
             for rp in _rpp:
                 rp["DEPTH"] -= 1
@@ -79,8 +65,7 @@ def _parse_pp(tree) -> (list, list):
                 else:
                     rpp.append(rp)
             result.extend(_pp)
-        _in = [_in[0] for _in in _subtrees(pp, ["IN"])]
-        if len(_in) > 0:
+        elif len_pps == 0 and len_in > 0:
             (_np, _rpp) = _parse_np(pp)
             for rp in _rpp:
                 rp["DEPTH"] -= 1
@@ -89,7 +74,17 @@ def _parse_pp(tree) -> (list, list):
                     result.append(rp)
                 else:
                     rpp.append(rp)
-            result.extend([{"IN": _in[0], "NP": _np}])
+            result.append({"IN": _in[0], "NP": _np})
+        else:
+            _in = _in[0]
+            collocation = []
+            first_in = True
+            for word in list(pp.flatten()):
+                if first_in and word == _in:
+                    first_in = False
+                else:
+                    collocation.append(word)
+            result.append({"IN": _in, "NP": [_parse_collocation(collocation)]})
     return result, rpp
 
 
@@ -104,70 +99,72 @@ def combine(inp: list) -> list:
 def _parse_np(tree) -> (list, list):
     result = []
     rpp = []
-    for np in _subtrees(tree, ["NP", "S"]):
-        collocations = [[]]
-        jjss = [[[]]]
-        for node in np:
-            label = node.label()
-            if label in conjunction_level:
-                collocations.append([])
-            elif label in word_level:
-                collocations[-1].append(node)
-            elif label == "ADJP":
-                jjs = [[]]
-                for jj in node:
-                    label = jj.label()
-                    if label in conjunction_level:
-                        jjs.append([])
-                    elif label in word_level:
-                        jjs[-1].append(jj[0])
-                jjss.append([jj for jj in jjs if len(jj) != 0])
-        jjss = [jjs for jjs in jjss if len(jjs) != 0]
-        nps = []
-        pps = []
-        for collocation in collocations:
-            if len(collocation) == 0: continue
-            _in = []
-            _collocation = []
-            for node in collocation:
-                if node.label() == "POS":
-                    _in.append(node[0])
+    for node in tree:
+        label = node.label()
+        if label == "NP":
+            collocations = [[]]
+            jjss = [[[]]]
+            for inner_node in node:
+                label = inner_node.label()
+                if label in conjunction_level:
+                    collocations.append([])
+                elif label in word_level:
+                    collocations[-1].append(inner_node)
+                elif label == "ADJP":
+                    jjs = [[]]
+                    for jj in inner_node:
+                        label = jj.label()
+                        if label in conjunction_level:
+                            jjs.append([])
+                        elif label in word_level:
+                            jjs[-1].append(jj[0])
+                    jjss.append([jj for jj in jjs if len(jj) != 0])
+            jjss = [jjs for jjs in jjss if len(jjs) != 0]
+            nps = []
+            pps = []
+            for collocation in collocations:
+                if len(collocation) == 0: continue
+                _in = []
+                _collocation = []
+                for inner_node in collocation:
+                    if inner_node.label() == "POS":
+                        _in.append(inner_node[0])
+                    else:
+                        _collocation.append(inner_node[0])
+                if len(_in) > 0:
+                    rpp.append({"IN": _in[0], "NP": [_parse_collocation(_collocation)], "DEPTH": 2})
                 else:
-                    _collocation.append(node[0])
-            if len(_in) > 0:
-                rpp.append({"IN": _in[0], "NP": [_parse_collocation(_collocation)], "DEPTH": 2})
+                    nps.append(_parse_collocation(_collocation))
+            nps = [{"NN": np["NN"], "JJ": (np["JJ"] + jjs)} for np in nps for jjs in combine(jjss)]
+            (_np, _rpp) = _parse_np(node)
+            for rp in _rpp:
+                rp["DEPTH"] -= 1
+                if rp["DEPTH"] <= 0:
+                    del rp["DEPTH"]
+                    pps.append(rp)
+                else:
+                    rpp.append(rp)
+            (_pp, _rpp) = _parse_pp(node)
+            for rp in _rpp:
+                rp["DEPTH"] -= 1
+                if rp["DEPTH"] <= 0:
+                    del rp["DEPTH"]
+                    pps.append(rp)
+                else:
+                    rpp.append(rp)
+            nps.extend(_np)
+            pps.extend(_pp)
+            if len(pps) == 0:
+                result.extend(nps)
             else:
-                nps.append(_parse_collocation(_collocation))
-        nps = [{"NN": np["NN"], "JJ": (np["JJ"] + jjs)} for np in nps for jjs in combine(jjss)]
-        (_np, _rpp) = _parse_np(np)
-        for rp in _rpp:
-            rp["DEPTH"] -= 1
-            if rp["DEPTH"] <= 0:
-                del rp["DEPTH"]
-                pps.append(rp)
-            else:
-                rpp.append(rp)
-        (_pp, _rpp) = _parse_pp(np)
-        for rp in _rpp:
-            rp["DEPTH"] -= 1
-            if rp["DEPTH"] <= 0:
-                del rp["DEPTH"]
-                pps.append(rp)
-            else:
-                rpp.append(rp)
-        nps.extend(_np)
-        pps.extend(_pp)
-        if len(pps) == 0:
-            result.extend(nps)
-        else:
-            result.append({"NP": nps, "PP": pps})
+                result.append({"NP": nps, "PP": pps})
+        elif (label in phrase_level or label in clause_level) and label not in ["VP", "PP"]:
+            result.append(_parse_collocation(list(node.flatten())))
     return result, rpp
 
 
 def _parse_sentence(tree) -> dict:
-    sentence = {"NP": [], "VP": []}
-    for np in _subtrees(tree, ["NP", "S"]):
-        sentence["NP"].extend(_parse_np(np)[0])
+    sentence = {"NP": _parse_np(tree)[0], "VP": []}
     for vp in _trees(tree, ["VP"]):
         vps = {}
         pps = []
@@ -194,16 +191,23 @@ def _parse_sentence(tree) -> dict:
     return sentence
 
 
+# ToDo:
+def _hard_convert(tree) -> dict:
+    pass
+    return None
+
+
 def parse(string: str) -> dict:
     if len(string.split()) == 0: return None
     sp_tree = next(sp.raw_parse(string))[0]
+    tmp = sp_tree
     if sp_tree.label() in fixable_sentence:
         string = "show " + string
         sp_tree = next(sp.raw_parse(string))[0]
 
     IO.writeln(sp_tree)
 
-    return _parse_sentence(sp_tree) if sp_tree.label() == "S" else None
+    return _parse_sentence(sp_tree) if sp_tree.label() == "S" else _hard_convert(tmp)
 
 
 def tree(root: dict, shift=0) -> str:
