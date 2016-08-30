@@ -11,7 +11,6 @@ class AutoChat():
         "show a id at developerhacker's repo with name GitBot",
         "developerhacker's repos",
         "repos of jgahkjgdskjgas",
-        "count developerhacker's private gists ",
         "login me",
         "developerhacker",
         "pword",

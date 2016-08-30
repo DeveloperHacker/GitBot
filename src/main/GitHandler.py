@@ -33,20 +33,22 @@ class GitHandler:
         return nick[max_len - 3] + "..." if len(nick) > max_len else " " * (max_len - len(nick)) + nick
 
     def _print(self, obj):
-        IO.writeln(self.format_nick(self._bot_nick, self._max_nick_len) + "  ::  " + str(obj))
+        for string in str(obj).split("\n"):
+            if string == "": continue
+            IO.writeln(self.format_nick(self._bot_nick, self._max_nick_len) + "  ::  " + string)
 
     def _read(self) -> str:
         return IO.readln(self.format_nick(self._nick, self._max_nick_len) + "  ::  ")
 
     def _hide_read(self) -> str:
-        # return IO.readln(self.format_nick(self._nick, self._max_nick_len) + "  ::  ")
-        return IO.hreadln(self.format_nick(self._nick, self._max_nick_len) + "  ::  ")  # not work in pycharm console
+        return IO.readln(self.format_nick(self._nick, self._max_nick_len) + "  ::  ")
+        # return IO.hreadln(self.format_nick(self._nick, self._max_nick_len) + "  ::  ")  # not work in pycharm console
 
     def _handle(self):
         data = self._read()
         parse = Corrector.parse(data)
 
-        # IO.writeln(Corrector.tree(parse))
+        IO.writeln(Corrector.tree(parse))
 
         if parse is None: return
         for vp in parse["VP"]:
@@ -77,7 +79,7 @@ class GitHandler:
                 self._print(ex.data["message"])
             else:
                 raise ex
-        return {"T": foo["T"], "O": None}
+        return {"T": "none", "O": None}
 
     def _build(self, node: dict, args: list) -> list:
         if "NN" in node:
@@ -125,6 +127,7 @@ class GitHandler:
                                 idle = False
                                 break
                         if idle:
+                            print(_args)
                             _args = [Simplifier.simplify_object(arg) for arg in _args]
                             fine += 4
                     _args = [Simplifier.get_object(jj) for jj in adjectives]
@@ -168,35 +171,41 @@ class GitHandler:
             return [arg for np in node["NP"] for arg in self._build(np, args + _args)]
 
     @staticmethod
-    def string(obj, _type="") -> str:
-        if _type == "user":
+    def string(obj, _type=None) -> str:
+        if _type is None:
+            _type = [""]
+        if _type[0] == "list":
+            result = []
+            for elem in obj: result.append(GitHandler.string(elem, _type[1:]))
+            return "\n".join(result)
+        elif _type[0] == "user":
             if obj is None: return "User ───║───"
-            login = GitHandler.string(obj.login, "login")
-            name = GitHandler.string(obj.name, "name")
-            email = GitHandler.string(obj.email, "email")
+            login = GitHandler.string(obj.login, ["login"])
+            name = GitHandler.string(obj.name, ["name"])
+            email = GitHandler.string(obj.email, ["email"])
             return "{}({}) {}".format(login, name, email)
-        elif _type == "repo":
+        elif _type[0] == "repo":
             if obj is None: return "Repo ───║───"
-            login = GitHandler.string(obj.owner.login, "login")
-            name = GitHandler.string(obj.name, "name")
-            _id = GitHandler.string(obj.id, "id")
+            login = GitHandler.string(obj.owner.login, ["login"])
+            name = GitHandler.string(obj.name, ["name"])
+            _id = GitHandler.string(obj.id, ["id"])
             return "{}'s repo {}({})".format(login, name, _id)
-        elif _type == "gist":
+        elif _type[0] == "gist":
             if obj is None: return "Gist ───║───"
-            login = GitHandler.string(obj.owner.login, "login")
-            _id = GitHandler.string(obj.id, "id")
+            login = GitHandler.string(obj.owner.login, ["login"])
+            _id = GitHandler.string(obj.id, ["id"])
             return "{}'s gist id:{}".format(login, _id)
-        elif _type == "name":
+        elif _type[0] == "name":
             if obj is None: return "───║───"
             return str(obj)
-        elif _type == "email":
+        elif _type[0] == "email":
             if obj is None: return "<───║───>"
             return '<' + str(obj) + '>'
-        elif _type == "str":
+        elif _type[0] == "str":
             if obj is None: return '"───║───"'
             return '"' + str(obj) + '"'
         else:
-            if obj is None: return "───║───"
+            if obj is None: return ""
             return str(obj)
 
     def show(self, obj: dict):
@@ -204,19 +213,13 @@ class GitHandler:
         if obj["T"] == ["str"] and Simplifier.simplify_word(obj["O"]) in self._functions:
             self._functions[word]({"T": obj["T"], "O": obj["O"]})
         else:
-            _type = obj["T"]
-            if _type[0] == "list":
-                for elem in obj["O"]: self._print(self.string(elem, _type[1]))
-            else:
-                self._print(self.string(obj["O"], _type[0]))
+            self._print(self.string(obj["O"], obj["T"]))
 
     def store(self, obj: dict):
         _type = obj["T"]
         if _type[0] in self._storeds:
-            self._storeds[_type[0]] = obj
+            self._storeds[_type[0]] = obj["O"]
             self._print("I remember it")
-        else:
-            self._print("I don't know who are you")
 
     def log(self, obj: dict):
         if obj["T"] != "str": return

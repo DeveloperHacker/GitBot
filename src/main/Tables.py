@@ -149,6 +149,10 @@ def create_builders_map(get_git_connector, get_stored) -> dict:
         ],
         "repo": [
             {"JJ": [], "F": [
+                {"A": [["str"], ["str"]], "T": ["repo"], "B": (lambda login, name: get_git_connector().user(login).get_repo(name))},
+                {"A": [["str"], ["name"]], "T": ["repo"], "B": (lambda login, name: get_git_connector().user(login).get_repo(name))},
+                {"A": [["login"], ["str"]], "T": ["repo"], "B": (lambda login, name: get_git_connector().user(login).get_repo(name))},
+                {"A": [["login"], ["name"]], "T": ["repo"], "B": (lambda login, name: get_git_connector().user(login).get_repo(name))},
                 {"A": [["user"], ["str"]], "T": ["repo"], "B": (lambda user, name: user.get_repo(name))},
                 {"A": [["user"], ["name"]], "T": ["repo"], "B": (lambda user, name: user.get_repo(name))},
                 {"A": [["int"]], "T": ["repo"], "B": (lambda _id: get_git_connector().repo(_id))}

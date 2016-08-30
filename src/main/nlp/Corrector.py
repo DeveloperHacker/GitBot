@@ -200,7 +200,7 @@ def parse(string: str) -> dict:
         string = "show " + string
         sp_tree = next(sp.raw_parse(string))[0]
 
-    # IO.writeln(sp_tree)
+    IO.writeln(sp_tree)
 
     return _parse_sentence(sp_tree) if sp_tree.label() == "S" else _hard_convert(tmp)
 
