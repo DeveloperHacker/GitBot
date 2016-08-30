@@ -1,5 +1,4 @@
 import re
-
 from src.main import Tables
 
 
@@ -17,21 +16,31 @@ def extract_types(words: list) -> list:
     result = []
     for word in words:
         word = word.lower()
-        if word in Tables.types: result.append(word)
+        if word in Tables.type_synonyms or word in Tables.types:
+            result.append(word)
     return result
 
 
-def lower_type(_type: str) -> str:
-    _type.lower()
-    if _type in Tables.types_synonyms: _type = Tables.types_synonyms[_type]["T"]
-    return _type
+def get_object(string: str):
+    if string.isnumeric():
+        _type = "int"
+        _value = int(string)
+    elif is_url(string):
+        _type = "url"
+        _value = string
+    else:
+        _type = "str"
+        _value = string
+    return {"T": [_type], "O": _value}
 
 
-def lower_object(_object: dict) -> dict:
-    if _object["T"] in Tables.types_synonyms:
-        synonym = Tables.types_synonyms[_object["T"]]
-        return {"T": synonym["T"], "O": synonym["C"](_object["O"])}
-    return None
+def simplify_object(obj: dict) -> dict:
+    _type = obj["T"][0]
+    if _type in Tables.similar_types:
+        synonym = Tables.similar_types[_type]
+        obj["T"] = synonym["T"]
+        obj["O"] = synonym["C"](obj["O"])
+    return obj
 
 
 def is_url(string: str) -> bool:

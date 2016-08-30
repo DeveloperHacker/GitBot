@@ -23,7 +23,7 @@ conjunction_level = {"CC", ","}
 
 belongs_words = {"in", "into", "at", "for", "of", "'s"}
 
-fixable_sentence = {"NP", "FRAG", "UCP", "PP", "ADJP"}
+fixable_sentence = {"NP", "FRAG", "UCP", "PP", "ADJP", "INTJ"}
 
 
 def _subtrees(tree, labels: list) -> list:
@@ -181,11 +181,6 @@ def _parse_sentence(tree) -> dict:
             vps["NP"] = [{"NP": _np, "PP": pps}]
         else:
             vps["NP"] = _np
-        for np in vps["NP"]:
-            if "NN" in np:
-                np["NP"] = [deepcopy(np)]
-                np["PP"] = []
-                del np["NN"], np["JJ"]
         vps["VB"] = [vb[0] for vb in _subtrees(vp, ["VB", "VBD", "VBG", "VBN", "VBP", "VBZ"])]
         sentence["VP"].append(vps)
     return sentence
@@ -205,7 +200,7 @@ def parse(string: str) -> dict:
         string = "show " + string
         sp_tree = next(sp.raw_parse(string))[0]
 
-    IO.writeln(sp_tree)
+    # IO.writeln(sp_tree)
 
     return _parse_sentence(sp_tree) if sp_tree.label() == "S" else _hard_convert(tmp)
 

@@ -29,12 +29,18 @@ class Connector:
 
     def user(self, login=None) -> NamedUser:
         if self._authorised and (not login or login.lower() == self._authorised.lower()):
-            return self._git.get_user()
+            user = self._git.get_user()
         else:
-            return self._git.get_user(login)
+            user = self._git.get_user(login)
+        user.login
+        return user
 
     def repo(self, id) -> Repository:
-        return self._git.get_repo(id)
+        repo = self._git.get_repo(id)
+        repo.owner
+        return repo
 
     def gist(self, id) -> Gist:
-        return self._git.get_gist(id)
+        gist = self._git.get_gist(id)
+        gist.owner
+        return gist
