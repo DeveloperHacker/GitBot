@@ -5,6 +5,10 @@ from github.NamedUser import NamedUser
 from github.Repository import Repository
 
 
+class NotAutorisedUserException(Exception):
+    pass
+
+
 class Connector:
     def __init__(self):
         self._git = Github()
@@ -30,8 +34,10 @@ class Connector:
     def user(self, login=None) -> NamedUser:
         if self._authorised and (not login or login.lower() == self._authorised.lower()):
             user = self._git.get_user()
-        else:
+        elif login:
             user = self._git.get_user(login)
+        else:
+            raise NotAutorisedUserException()
         user.login
         return user
 

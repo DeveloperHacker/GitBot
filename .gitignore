@@ -4,3 +4,4 @@
 __pycache__/
 main.bash
 tests.bash
+*.txt

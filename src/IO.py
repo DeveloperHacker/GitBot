@@ -3,6 +3,8 @@ import sys
 import fcntl
 from getpass import getpass
 
+DEBUG = False
+
 
 def write(obj):
     sys.stdout.write(str(obj))
@@ -28,3 +30,7 @@ def read(prompt: str) -> str:
 
 def hreadln(prompt: str) -> str:
     return getpass(prompt)
+
+
+def debug(obj) -> str:
+    if DEBUG: writeln(obj)

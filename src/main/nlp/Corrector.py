@@ -196,11 +196,17 @@ def parse(string: str) -> dict:
     if len(string.split()) == 0: return None
     sp_tree = next(sp.raw_parse(string))[0]
     tmp = sp_tree
-    if sp_tree.label() in fixable_sentence:
+    if sp_tree.label() in fixable_sentence or sp_tree.label() == "S" and len(_subtrees(sp_tree, ["VP"])) == 0:
         string = "show " + string
         sp_tree = next(sp.raw_parse(string))[0]
 
-    IO.writeln(sp_tree)
+    if sp_tree.label() in clause_level:
+        file = open(sp_tree.label().lower() + ".txt", "a")
+        file.write(str(sp_tree) + "\n")
+        file.flush()
+        file.close()
+
+    IO.debug(sp_tree)
 
     return _parse_sentence(sp_tree) if sp_tree.label() == "S" else _hard_convert(tmp)
 

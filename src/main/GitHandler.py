@@ -4,7 +4,8 @@ from github import GithubException
 from src import IO
 from src.main import Simplifier
 from src.main import Tables
-from src.main.GitConnector import Connector
+from src.main.Tables import NONE
+from src.main.GitConnector import Connector, NotAutorisedUserException
 from src.main.nlp import Corrector
 
 
@@ -48,7 +49,7 @@ class GitHandler:
         data = self._read()
         parse = Corrector.parse(data)
 
-        IO.writeln(Corrector.tree(parse))
+        IO.debug(Corrector.tree(parse))
 
         if parse is None: return
         for vp in parse["VP"]:
@@ -56,7 +57,7 @@ class GitHandler:
                 for vb in vp["VB"]:
                     vb = Simplifier.simplify_word(vb)
                     if vb not in self._functions: continue
-                    self._functions[vb]({"T": "none", "O": None})
+                    self._functions[vb]({"T": ["none"], "O": None})
             else:
                 for node in vp["NP"]:
                     args = self._build(node, [])
@@ -69,23 +70,47 @@ class GitHandler:
     def distance(list1: list, list2: list) -> float:
         return abs(len(list1) - len(list2))
 
+    @staticmethod
+    def difference(list1: list, list2: list) -> list:
+        tmp = deepcopy(list2)
+        result = []
+        for el in list1:
+            if el in tmp:
+                tmp.remove(el)
+            else:
+                result.append(el)
+        return result
+
     def _execute(self, foo: dict, args: list):
         try:
-            return {"T": foo["T"], "O": foo["B"](*[arg["O"] for arg in args])}
+            data = foo["B"](*[arg["O"] for arg in args])
+            if data is None:
+                self._print("{} not found".format(self.type_string(foo["T"])))
+                return {"T": ["none"], "O": None}
+            else:
+                return {"T": foo["T"], "O": data}
         except GithubException as ex:
             if ex.status == 404:
-                self._print("{} not found".format(" ".join(foo["T"]).title()))
+                self._print("{} not found".format(self.type_string(foo["T"])))
             elif ex.status == 403:
                 self._print(ex.data["message"])
             else:
                 raise ex
-        return {"T": "none", "O": None}
+        except NotAutorisedUserException as _:
+            self._print("I don't know who are you")
+        return NONE
 
     def _build(self, node: dict, args: list) -> list:
         if "NN" in node:
             string = node["NN"]
             noun = Simplifier.simplify_word(string)
             adjectives = Simplifier.simplify_exp(node["JJ"])
+            types = Simplifier.extract_types(adjectives)
+            if len(types) == 1 and types[0] in self._builders and noun not in self._builders:
+                _type = types[0]
+                adjectives.remove(_type)
+                adjectives.append(string)
+                noun = _type
             relevant_shells = []
             if noun in self._builders:
                 shells = self._builders[noun]
@@ -106,6 +131,7 @@ class GitHandler:
                         min_dist = distance
                         min_shell = shell
                 shell = min_shell
+                adjectives = self.difference(adjectives, shell["JJ"])
                 for function in shell["F"]:
                     holes = deepcopy(function["A"])
                     relevant_args = []
@@ -127,9 +153,15 @@ class GitHandler:
                                 idle = False
                                 break
                         if idle:
-                            print(_args)
                             _args = [Simplifier.simplify_object(arg) for arg in _args]
                             fine += 4
+
+                        IO.debug("all_primitive = {}".format(all_primitive))
+                        IO.debug("idle = {}".format(idle))
+                        IO.debug("_args = {}".format(_args))
+                        IO.debug("holes = {}".format(holes))
+                        IO.debug("---------------------------")
+
                     _args = [Simplifier.get_object(jj) for jj in adjectives]
                     idle = False
                     fine = 1
@@ -144,31 +176,37 @@ class GitHandler:
                                 break
                         if idle: fine += 4
                     if len(holes) > 0: mass = float("Inf")
+
+                    IO.debug("args = {}".format(relevant_args))
+                    IO.debug("function = {}".format(function))
+                    IO.debug("mass = {}".format(mass))
+                    IO.debug("+++++++++++++++++++++++++++")
+
                     if relevant_function["M"] > mass:
                         relevant_function = {"M": mass, "A": relevant_args, "F": function}
+
+            IO.debug("relevant_function = {}".format(relevant_function))
+            IO.debug("===========================")
+
             if relevant_function["M"] < float("Inf"):
                 constructed_object = self._execute(relevant_function["F"], relevant_function["A"])
             if constructed_object is None:
-                types = Simplifier.extract_types(adjectives)
                 obj = Simplifier.get_object(string)
-                if len(types) == 1 and types[0] in self._builders:
-                    shells = self._builders[types[0]]
-                    functions = []
-                    for shell in shells:
-                        if len(shell["JJ"]) == 0:
-                            functions = shell["F"]
-                            break
-                    for function in functions:
-                        _args = function["A"]
-                        if len(_args) == 1 and _args[0] == obj["T"]:
-                            constructed_object = self._execute(function, [obj])
-                            break
-                if constructed_object is None:
-                    constructed_object = {"T": obj["T"], "O": obj["O"]}
+                constructed_object = {"T": obj["T"], "O": obj["O"]}
             return [constructed_object]
         else:
             _args = [{**{"IN": pp["IN"]}, **arg} for pp in node["PP"] for np in pp["NP"] for arg in self._build(np, [])]
             return [arg for np in node["NP"] for arg in self._build(np, args + _args)]
+
+    @staticmethod
+    def type_string(_type: list):
+        if len(_type) == 0: return
+        if _type[0] == "list":
+            return GitHandler.type_string(_type[1:]) + "s"
+        elif _type[0] in Tables.primitive_types:
+            return " ".join(_type).lower()
+        else:
+            return " ".join(_type).title()
 
     @staticmethod
     def string(obj, _type=None) -> str:
@@ -177,21 +215,24 @@ class GitHandler:
         if _type[0] == "list":
             result = []
             for elem in obj: result.append(GitHandler.string(elem, _type[1:]))
-            return "\n".join(result)
+            if len(list(obj)) == 0:
+                return GitHandler.type_string(_type[1:]) + "s not found"
+            else:
+                return "\n".join(result)
         elif _type[0] == "user":
-            if obj is None: return "User ───║───"
+            if obj is None: return "User not found"
             login = GitHandler.string(obj.login, ["login"])
             name = GitHandler.string(obj.name, ["name"])
             email = GitHandler.string(obj.email, ["email"])
             return "{}({}) {}".format(login, name, email)
         elif _type[0] == "repo":
-            if obj is None: return "Repo ───║───"
+            if obj is None: return "Repo not found"
             login = GitHandler.string(obj.owner.login, ["login"])
             name = GitHandler.string(obj.name, ["name"])
             _id = GitHandler.string(obj.id, ["id"])
             return "{}'s repo {}({})".format(login, name, _id)
         elif _type[0] == "gist":
-            if obj is None: return "Gist ───║───"
+            if obj is None: return "Gist not found"
             login = GitHandler.string(obj.owner.login, ["login"])
             _id = GitHandler.string(obj.id, ["id"])
             return "{}'s gist id:{}".format(login, _id)
@@ -217,12 +258,21 @@ class GitHandler:
 
     def store(self, obj: dict):
         _type = obj["T"]
-        if _type[0] in self._storeds:
+        if _type[0] == "str" and obj["O"] == "me":
+            try:
+                self._storeds["user"] = self._connector.user()
+            except NotAutorisedUserException as _:
+                self._print("I don't know who are you")
+            else:
+                self._print("I remember it")
+        elif _type[0] in self._storeds:
             self._storeds[_type[0]] = obj["O"]
             self._print("I remember it")
+        else:
+            self._print("I can not remember " + self.type_string(_type))
 
     def log(self, obj: dict):
-        if obj["T"] != "str": return
+        if obj["T"] != ["str"]: return
         value = obj["O"]
         if value == "out":
             self.logout(obj)
@@ -231,7 +281,7 @@ class GitHandler:
 
     def login(self, _: dict):
         if self._connector.authorised():
-            self._print("you need to unlogin before you login again")
+            self._print("logout before you login again")
         else:
             self._print("login:")
             login = self._read()
@@ -239,7 +289,7 @@ class GitHandler:
             password = self._hide_read()
             if not self._connector.authorise(login, password):
                 self._nick = self._default_nick
-                self._print("Incorrect input: login or password")
+                self._print("incorrect login or password")
             else:
                 self._nick = self._connector.authorised()
 

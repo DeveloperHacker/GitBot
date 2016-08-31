@@ -5,30 +5,31 @@ from src import IO
 
 
 class AutoChat():
-    DELAY = 5
+    DELAY = 10
 
     chat = [
         "show a id at developerhacker's repo with name GitBot",
         "developerhacker's repos",
         "repos of jgahkjgdskjgas",
-        "login me",
+        "log in",
         "developerhacker",
         "pword",
         "repos at developerhacker",
-        "the avatar url",
+        "my avatar url",
         "store a user with the name aezakme",
-        "a name for this user",
-        "show the repos and gists of developerhacker and AndreiChugunov, and the avatar url at saloed, and name at this user and developerhacker",
-        "remember me",
-        "show a name at this user",
-        "login me",
-        "logout me",
-        "login me",
+        "the name for this user",
+        "show my repos and my gists, the avatar url and orgs url of saloed, and this user's id",
+        "store me",
+        "a this user's name and login",
+        "log in",
+        "log out",
+        "log in",
         "adssadasd",
         "adssadasd",
-        "show the name at developerhacker",
-        "the name at Saloed",
-        "disconnect"
+        "a developerhacker's repo 64680022",
+        "the name at user Saloed",
+        "a repo gitbot of developerhacker"
+        "bye"
     ]
 
     @staticmethod
