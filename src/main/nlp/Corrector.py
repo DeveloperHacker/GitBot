@@ -164,7 +164,13 @@ def _parse_np(tree) -> (list, list):
 
 
 def _parse_sentence(tree) -> dict:
-    sentence = {"NP": _parse_np(tree)[0], "VP": []}
+    (_np, _rpp) = _parse_np(tree)
+    if len(_rpp) > 0:
+        for rp in _rpp:
+            if rp["DEPTH"] == 1: del rp["DEPTH"]
+        sentence = {"NP": [{"NP": _np, "PP": _rpp}], "VP": []}
+    else:
+        sentence = {"NP": _np, "VP": []}
     for vp in _trees(tree, ["VP"]):
         vps = {}
         pps = []
@@ -208,7 +214,15 @@ def parse(string: str) -> dict:
 
     IO.debug(sp_tree)
 
-    return _parse_sentence(sp_tree) if sp_tree.label() == "S" else _hard_convert(tmp)
+    if sp_tree.label() in ["S", "SINV"]:
+        _parse = _parse_sentence(sp_tree)
+        if sp_tree.label() == "SINV":
+            for vp in _parse["VP"]:
+                vp["NP"].extend(_parse["NP"])
+            _parse["NP"] = []
+        return _parse
+    else:
+        return _hard_convert(tmp)
 
 
 def tree(root: dict, shift=0) -> str:

@@ -22,16 +22,15 @@ def extract_types(words: list) -> list:
 
 
 def get_object(string: str):
-    if string.isnumeric():
-        _type = "int"
-        _value = int(string)
-    elif is_url(string):
+    if is_url(string):
         _type = "url"
-        _value = string
+    elif is_email(string):
+        _type = "email"
+    elif string.isnumeric():
+        _type = "id"
     else:
         _type = "str"
-        _value = string
-    return {"T": [_type], "O": _value}
+    return {"T": [_type], "O": string}
 
 
 def simplify_object(obj: dict) -> dict:
@@ -45,11 +44,15 @@ def simplify_object(obj: dict) -> dict:
 
 def is_url(string: str) -> bool:
     regex = re.compile(
-        r'^(?:http|ftp)s?://'  # http:// or https://
-        r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|'  # domain...
-        r'localhost|'  # localhost...
-        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'  # ...or ip
-        r'(?::\d+)?'  # optional port
+        r'^(?:http|ftp)s?://'
+        r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|'
+        r'localhost|'
+        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'
+        r'(?::\d+)?'
         r'(?:/?|[/?]\S+)$', re.IGNORECASE)
-    match = re.match(regex, string)
-    return match is not None
+    return re.match(regex, string) is not None
+
+
+def is_email(string: str) -> bool:
+    regex = re.compile("[^@]+@[^@]+\.[^@]+")
+    return re.match(regex, string) is not None

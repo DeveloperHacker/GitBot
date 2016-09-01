@@ -14,8 +14,9 @@ class GitHandler:
         self._connect = False
         self._connector = Connector()
         self._storeds = Tables.create_storeds_map()
-        self._builders = Tables.create_builders_map((lambda: self._connector), (lambda _type: self._storeds[_type]))
-        self._functions = Tables.create_functions_map((lambda: self))
+        self._builders = Tables.create_builders_map(lambda: self._connector, lambda _type: self._storeds[_type])
+        self._functions = Tables.create_functions_map(lambda: self)
+        self._type_builders = Tables.create_type_builders_mpa(lambda : self._connector)
         self._bot_nick = bot_nick
         self._nick = default_nick
         self._default_nick = default_nick
@@ -42,8 +43,11 @@ class GitHandler:
         return IO.readln(self.format_nick(self._nick, self._max_nick_len) + "  ::  ")
 
     def _hide_read(self) -> str:
-        return IO.readln(self.format_nick(self._nick, self._max_nick_len) + "  ::  ")
+        return IO.readln(self.format_nick("password", self._max_nick_len) + "  ::  ")
         # return IO.hreadln(self.format_nick(self._nick, self._max_nick_len) + "  ::  ")  # not work in pycharm console
+
+    def _custom_read(self, prompt: str):
+        return IO.readln(self.format_nick(prompt, self._max_nick_len) + "  ::  ")
 
     def _handle(self):
         data = self._read()
@@ -162,9 +166,13 @@ class GitHandler:
                         IO.debug("holes = {}".format(holes))
                         IO.debug("---------------------------")
 
+                    mass += len(_args)
                     _args = [Simplifier.get_object(jj) for jj in adjectives]
                     idle = False
                     fine = 1
+                    if noun in self._type_builders and len(holes) == 1 and len(holes) == len(function["A"]):
+                        fun = self._type_builders[noun]
+                        if holes == fun["A"]: function = fun
                     while not idle and len(holes) > 0 and len(_args) > 0:
                         idle = True
                         for i, arg in reversed(list(enumerate(_args))):
@@ -175,6 +183,7 @@ class GitHandler:
                                 idle = False
                                 break
                         if idle: fine += 4
+                    mass -= 2 * len(function["A"])
                     if len(holes) > 0: mass = float("Inf")
 
                     IO.debug("args = {}".format(relevant_args))
@@ -220,41 +229,37 @@ class GitHandler:
             else:
                 return "\n".join(result)
         elif _type[0] == "user":
-            if obj is None: return "User not found"
             login = GitHandler.string(obj.login, ["login"])
             name = GitHandler.string(obj.name, ["name"])
             email = GitHandler.string(obj.email, ["email"])
-            return "{}({}) {}".format(login, name, email)
+            return "{}({}) <{}>".format(login, name, email)
         elif _type[0] == "repo":
-            if obj is None: return "Repo not found"
             login = GitHandler.string(obj.owner.login, ["login"])
             name = GitHandler.string(obj.name, ["name"])
             _id = GitHandler.string(obj.id, ["id"])
             return "{}'s repo {}({})".format(login, name, _id)
         elif _type[0] == "gist":
-            if obj is None: return "Gist not found"
             login = GitHandler.string(obj.owner.login, ["login"])
             _id = GitHandler.string(obj.id, ["id"])
-            return "{}'s gist id:{}".format(login, _id)
-        elif _type[0] == "name":
-            if obj is None: return "───║───"
-            return str(obj)
-        elif _type[0] == "email":
-            if obj is None: return "<───║───>"
-            return '<' + str(obj) + '>'
+            return "{}'s gist {}".format(login, _id)
         elif _type[0] == "str":
-            if obj is None: return '"───║───"'
-            return '"' + str(obj) + '"'
-        else:
-            if obj is None: return ""
+            return '"' + str(obj) + '"' if obj else "───║───"
+        elif _type[0] in ["url", "id", "email"]:
+            return _type[0] + ":" + str(obj) if obj else "───║───"
+        elif _type[0] == "none":
+            return None
+        elif _type[0] in Tables.types:
             return str(obj)
+        else:
+            return str(obj) if obj else "───║───"
 
     def show(self, obj: dict):
         word = Simplifier.simplify_word(str(obj["O"]))
-        if obj["T"] == ["str"] and Simplifier.simplify_word(obj["O"]) in self._functions:
+        if obj["T"] == ["str"] and word in self._functions:
             self._functions[word]({"T": obj["T"], "O": obj["O"]})
         else:
-            self._print(self.string(obj["O"], obj["T"]))
+            string = self.string(obj["O"], obj["T"])
+            if string: self._print(string)
 
     def store(self, obj: dict):
         _type = obj["T"]
@@ -279,24 +284,24 @@ class GitHandler:
         elif value == "in":
             self.login(obj)
 
+    def logout(self, _: dict):
+        if self._connector.authorised():
+            self._connector.logout()
+            self._nick = self._default_nick
+
     def login(self, _: dict):
         if self._connector.authorised():
             self._print("logout before you login again")
         else:
-            self._print("login:")
-            login = self._read()
-            self._print("password:")
+            self._print("enter your login for github")
+            login = self._custom_read("login")
+            self._print("enter password")
             password = self._hide_read()
             if not self._connector.authorise(login, password):
                 self._nick = self._default_nick
                 self._print("incorrect login or password")
             else:
                 self._nick = self._connector.authorised()
-
-    def logout(self, _: dict):
-        if self._connector.authorised():
-            self._connector.logout()
-            self._nick = self._default_nick
 
     def hello(self, _: dict):
         self._print("=)")

@@ -4,7 +4,7 @@ import time
 from src import IO
 
 
-class AutoChat():
+class AutoChat:
     DELAY = 10
 
     chat = [
@@ -37,12 +37,16 @@ class AutoChat():
         directory = "/".join(os.path.realpath(__file__).split("/")[:-3]) + "/src/run.py"
         start = time.time()
         process = subprocess.Popen("python " + directory, shell=True, stdin=subprocess.PIPE)
+        first = True
         for mes in AutoChat.chat:
-            time.sleep(AutoChat.DELAY)
+            if not first:
+                time.sleep(AutoChat.DELAY)
+            else:
+                time.sleep(1)
             process.stdin.write(bytes(mes + "\n", "utf8"))
             process.stdin.flush()
             IO.writeln(mes)
-        time.sleep(AutoChat.DELAY)
+            first = False
         end = time.time()
         IO.writeln(time.strftime("\nruntime: %Mm %Ss", time.gmtime(3 * 3600 + end - start)))
         process.kill()
