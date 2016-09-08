@@ -1,3 +1,5 @@
+from main import Simplifier
+
 synonyms = {
     "print": "show",
     "view": "show",
@@ -123,54 +125,65 @@ def create_builders_map(get_git_connector, get_stored) -> dict:
             {"JJ": [], "F": [
                 {"A": [["str"]],
                  "T": type_synonyms["repos"],
-                 "B": lambda login: get_git_connector().user(login).get_repos()},
+                 "B": lambda login: list(get_git_connector().user(login).get_repos())},
                 {"A": [["login"]],
                  "T": type_synonyms["repos"],
-                 "B": lambda login: get_git_connector().user(login).get_repos()},
+                 "B": lambda login: list(get_git_connector().user(login).get_repos())},
                 {"A": [["user"]],
                  "T": type_synonyms["repos"],
-                 "B": lambda user: user.get_repos()}
+                 "B": lambda user: list(user.get_repos())}
             ]},
             {"JJ": ["my"], "F": [
                 {"A": [],
                  "T": type_synonyms["repos"],
-                 "B": lambda: get_git_connector().user().get_repos()}
+                 "B": lambda: list(get_git_connector().user().get_repos())}
+            ]},
+            {"JJ": ["starred"], "F": [
+                {"A": [["str"]],
+                 "T": type_synonyms["repos"],
+                 "B": lambda login: list(get_git_connector().user(login).get_starred())},
+                {"A": [["login"]],
+                 "T": type_synonyms["repos"],
+                 "B": lambda login: list(get_git_connector().user(login).get_starred())},
+                {"A": [["user"]],
+                 "T": type_synonyms["repos"],
+                 "B": lambda user: list(user.get_starred())}
             ]}
         ],
         "gists": [
             {"JJ": [], "F": [
                 {"A": [["str"]],
                  "T": type_synonyms["gists"],
-                 "B": lambda login: get_git_connector().user(login).get_gists()},
+                 "B": lambda login: list(get_git_connector().user(login).get_gists())},
                 {"A": [["login"]],
                  "T": type_synonyms["gists"],
-                 "B": lambda login: get_git_connector().user(login).get_gists()},
+                 "B": lambda login: list(get_git_connector().user(login).get_gists())},
                 {"A": [["user"]],
                  "T": type_synonyms["gists"],
-                 "B": lambda user: user.get_gists()}
+                 "B": lambda user: list(user.get_gists())}
             ]},
             {"JJ": ["my"], "F": [
                 {"A": [],
                  "T": type_synonyms["gists"],
-                 "B": lambda: get_git_connector().user().get_gists()}
+                 "B": lambda: list(get_git_connector().user().get_gists())}
             ]}
         ],
         "keys": [
             {"JJ": [], "F": [
                 {"A": [["str"]],
                  "T": type_synonyms["keys"],
-                 "B": lambda login: get_git_connector().user(login).get_keys()},
+                 "B": lambda login: list(get_git_connector().user(login).get_keys())},
                 {"A": [["login"]],
                  "T": type_synonyms["keys"],
-                 "B": lambda login: get_git_connector().user(login).get_keys()},
+                 "B": lambda login: list(get_git_connector().user(login).get_keys())},
                 {"A": [["user"]],
                  "T": type_synonyms["keys"],
-                 "B": lambda user: user.get_keys()}
+                 "B": lambda user: list(user.get_keys())}
             ]},
             {"JJ": ["my"], "F": [
                 {"A": [],
                  "T": type_synonyms["keys"],
-                 "B": lambda: get_git_connector().user().get_keys()}
+                 "B": lambda: list(get_git_connector().user().get_keys())}
             ]}
         ],
         "name": [
@@ -311,7 +324,8 @@ def create_builders_map(get_git_connector, get_stored) -> dict:
                  "B": lambda login, name: get_git_connector().user(login).get_repo(name)},
                 {"A": [["str"], ["id"]],
                  "T": ["repo"],
-                 "B": lambda login, _id: get_git_connector().user(login).get_repo(get_git_connector().repo(int(_id)).name) if _id.isnumeric() else None},
+                 "B": lambda login, _id: get_git_connector().user(login).get_repo(
+                     get_git_connector().repo(int(_id)).name) if _id.isnumeric() else None},
                 {"A": [["login"], ["str"]],
                  "T": ["repo"],
                  "B": lambda login, name: get_git_connector().user(login).get_repo(name)},
@@ -320,7 +334,8 @@ def create_builders_map(get_git_connector, get_stored) -> dict:
                  "B": lambda login, name: get_git_connector().user(login).get_repo(name)},
                 {"A": [["login"], ["id"]],
                  "T": ["repo"],
-                 "B": lambda login, _id: get_git_connector().user(login).get_repo(get_git_connector().repo(int(_id)).name) if _id.isnumeric() else None},
+                 "B": lambda login, _id: get_git_connector().user(login).get_repo(
+                     get_git_connector().repo(int(_id)).name) if _id.isnumeric() else None},
                 {"A": [["user"], ["str"]],
                  "T": ["repo"],
                  "B": lambda user, name: user.get_repo(name)},
@@ -329,13 +344,17 @@ def create_builders_map(get_git_connector, get_stored) -> dict:
                  "B": lambda user, name: user.get_repo(name)},
                 {"A": [["user"], ["id"]],
                  "T": ["repo"],
-                 "B": lambda user, _id: user.get_repo(get_git_connector().repo(int(_id)).name) if _id.isnumeric() else None},
+                 "B": lambda user, _id: user.get_repo(
+                     get_git_connector().repo(int(_id)).name) if _id.isnumeric() else None},
                 {"A": [["str"]],
                  "T": ["repo"],
                  "B": lambda _id: get_git_connector().repo(int(_id)) if _id.isnumeric() else None},
                 {"A": [["id"]],
                  "T": ["repo"],
-                 "B": lambda _id: get_git_connector().repo(int(_id)) if _id.isnumeric() else None}
+                 "B": lambda _id: get_git_connector().repo(int(_id)) if _id.isnumeric() else None},
+                {"A": [["list", "repo"], ["str"]],
+                 "T": ["repo"],
+                 "B": lambda _list, _str: _list[Simplifier.number(_str)]}
             ]},
             {"JJ": ["this"], "F": [
                 {"A": [],
@@ -351,7 +370,8 @@ def create_builders_map(get_git_connector, get_stored) -> dict:
                  "B": lambda name: get_git_connector().user().get_repo(name)},
                 {"A": [["id"]],
                  "T": ["repo"],
-                 "B": lambda _id: get_git_connector().user().get_repo(get_git_connector().repo(_id).name) if _id.isnumeric() else None}
+                 "B": lambda _id: get_git_connector().user().get_repo(
+                     get_git_connector().repo(_id).name) if _id.isnumeric() else None}
             ]}
         ],
         "gist": [
@@ -414,7 +434,10 @@ def create_builders_map(get_git_connector, get_stored) -> dict:
                  "B": lambda repo: repo.id},
                 {"A": [["gist"]],
                  "T": ["id"],
-                 "B": lambda gist: gist.id}
+                 "B": lambda gist: gist.id},
+                {"A": [["key"]],
+                 "T": ["id"],
+                 "B": lambda key: key.id}
             ]},
             {"JJ": ["my"], "F": [
                 {"A": [],
@@ -427,6 +450,13 @@ def create_builders_map(get_git_connector, get_stored) -> dict:
                 {"A": [["str"]],
                  "T": ["key"],
                  "B": lambda _str: _str}
+            ]}
+        ],
+        "element": [
+            {"JJ": [], "F": [
+                {"A": [["list", "repo"], ["str"]],
+                 "T": ["repo"],
+                 "B": lambda _list, _str: _list[Simplifier.number(_str)]}
             ]}
         ]
     }

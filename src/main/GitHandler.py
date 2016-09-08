@@ -1,5 +1,4 @@
 from copy import deepcopy
-
 from github import GithubException
 from src import IO
 from src.main import Simplifier
@@ -56,19 +55,25 @@ class GitHandler:
         IO.debug(Corrector.tree(parse))
 
         if parse is None: return
-        for vp in parse["VP"]:
-            if len(vp["NP"]) == 0:
-                for vb in vp["VB"]:
-                    vb = Simplifier.simplify_word(vb)
-                    if vb not in self._functions: continue
-                    self._functions[vb]({"T": ["none"], "O": None})
-            else:
-                for node in vp["NP"]:
-                    args = self._build(node, [])
+        try:
+            for vp in parse["VP"]:
+                if len(vp["NP"]) == 0:
                     for vb in vp["VB"]:
                         vb = Simplifier.simplify_word(vb)
                         if vb not in self._functions: continue
-                        for arg in args: self._functions[vb](arg)
+                        self._functions[vb]({"T": ["none"], "O": None})
+                else:
+                    for node in vp["NP"]:
+                        args = self._build(node, [])
+                        for vb in vp["VB"]:
+                            vb = Simplifier.simplify_word(vb)
+                            if vb not in self._functions: continue
+                            for arg in args: self._functions[vb](arg)
+        except GithubException as ex:
+            if ex.status == 403:
+                self._print(ex.data["message"])
+            else:
+                raise ex
 
     @staticmethod
     def distance(list1: list, list2: list) -> float:
@@ -96,8 +101,6 @@ class GitHandler:
         except GithubException as ex:
             if ex.status == 404:
                 self._print("{} not found".format(self.type_string(foo["T"])))
-            elif ex.status == 403:
-                self._print(ex.data["message"])
             else:
                 raise ex
         except NotAutorisedUserException as _:
@@ -218,14 +221,14 @@ class GitHandler:
             return " ".join(_type).title()
 
     @staticmethod
-    def string(obj, _type=None) -> str:
-        if _type is None:
-            _type = [""]
+    def string(obj, _type: list) -> str:
         if _type[0] == "list":
             result = []
+            obj = list(obj)
             for elem in obj: result.append(GitHandler.string(elem, _type[1:]))
-            if len(list(obj)) == 0:
-                return GitHandler.type_string(_type[1:]) + "s not found"
+            if len(obj) == 0:
+                print(obj)
+                return "{}s not found".format(GitHandler.type_string(_type[1:]))
             else:
                 return "\n".join(result)
         elif _type[0] == "user":
@@ -242,14 +245,14 @@ class GitHandler:
             login = GitHandler.string(obj.owner.login, ["login"])
             _id = GitHandler.string(obj.id, ["id"])
             return "{}'s gist {}".format(login, _id)
-        elif _type[0] == "str":
-            return '"' + str(obj) + '"' if obj else "───║───"
         elif _type[0] in ["url", "id", "email"]:
-            return _type[0] + ":" + str(obj) if obj else "───║───"
+            return "{}:{}".format(_type[0], str(obj) if obj else "───║───")
+        elif _type[0] == "key":
+            return "{}:{}({})".format(_type[0], *((str(obj.id), str(obj.key)) if obj else ("───║───", "")))
+        elif _type[0] == "str":
+            return "\"{}\"".format(str(obj) if obj else "───║───")
         elif _type[0] == "none":
             return None
-        elif _type[0] in Tables.types:
-            return str(obj)
         else:
             return str(obj) if obj else "───║───"
 
@@ -266,10 +269,9 @@ class GitHandler:
         if _type[0] == "str" and obj["O"] == "me":
             try:
                 self._storeds["user"] = self._connector.user()
+                self._print("I remember it")
             except NotAutorisedUserException as _:
                 self._print("I don't know who are you")
-            else:
-                self._print("I remember it")
         elif _type[0] in self._storeds:
             self._storeds[_type[0]] = obj["O"]
             self._print("I remember it")

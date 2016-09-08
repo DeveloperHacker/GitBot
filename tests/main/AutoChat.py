@@ -8,6 +8,7 @@ class AutoChat:
     DELAY = 10
 
     chat = [
+        "hello",
         "show a id at developerhacker's repo with name GitBot",
         "developerhacker's repos",
         "repos of jgahkjgdskjgas",

@@ -1,4 +1,6 @@
 import re
+
+from main.nlp.Number import Number
 from src.main import Tables
 
 
@@ -56,3 +58,7 @@ def is_url(string: str) -> bool:
 def is_email(string: str) -> bool:
     regex = re.compile("[^@]+@[^@]+\.[^@]+")
     return re.match(regex, string) is not None
+
+
+def number(string: str) -> int:
+    return int(Number(string.split())) - 1 if string != "last" else -1
