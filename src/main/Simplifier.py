@@ -1,6 +1,7 @@
 import re
 
-from main.nlp.Number import Number
+from src.main.nlp.Number import Number
+from src.main.tree.Type import Type
 from src.main import Tables
 
 
@@ -18,29 +19,38 @@ def extract_types(words: list) -> list:
     result = []
     for word in words:
         word = word.lower()
-        if word in Tables.type_synonyms or word in Tables.types:
+        if word in Type.type_synonyms or word in Type.types:
             result.append(word)
     return result
 
 
 def get_object(string: str):
     if is_url(string):
-        _type = "url"
+        type_name = "url"
     elif is_email(string):
-        _type = "email"
+        type_name = "email"
     elif string.isnumeric():
-        _type = "id"
+        type_name = "id"
     else:
-        _type = "str"
-    return {"T": [_type], "O": string}
+        type_name = "str"
+    return {"T": Type(type_name), "O": string}
 
 
 def simplify_object(obj: dict) -> dict:
-    _type = obj["T"][0]
+    _type = obj["T"]
     if _type in Tables.similar_types:
         synonym = Tables.similar_types[_type]
         obj["T"] = synonym["T"]
         obj["O"] = synonym["C"](obj["O"])
+    elif _type[0] == "list":
+        simple_type = "none"
+        result = []
+        for elem in obj["O"]:
+            simple = simplify_object({"T": Type(*_type[1:]), "O": elem})
+            simple_type = simple["T"]
+            result.append(simple)
+        obj["T"] = simple_type
+        obj["O"] = result
     return obj
 
 

@@ -1,7 +1,8 @@
 import os
 
-home = os.getenv("HOME")
+os.environ["SRC_MAIN_NLP_INIT_NUMBER"] = "false"
 
+home = os.getenv("HOME")
 stanford_dir = home + "/NLP"
 os.environ["STANFORD_DIR"] = stanford_dir
 os.environ["STANFORD_MODELS"] = "{0}/stanford-postagger-full/models:" \

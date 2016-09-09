@@ -1,7 +1,6 @@
 import re
 
-from main.nlp.Number import Number
-from src.main import Tables
+from src.main.nlp.Number import Number
 
 
 class Type:
@@ -10,19 +9,29 @@ class Type:
         if len(self._blocks) == 0: raise Exception("Created empty type")
 
     def __str__(self) -> str:
-        print(self._blocks)
         return Type.string(self._blocks)
 
     def __getitem__(self, index):
         return self._blocks[index]
+
+    def __eq__(self, other):
+        if not isinstance(other, Type): return False
+        if len(self._blocks) != len(other._blocks): return False
+        return all([e1 == e2 for e1, e2 in zip(self._blocks, other._blocks)])
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __hash__(self):
+        return hash(str(self))
 
     @staticmethod
     def parse(words: list) -> list:
         result = []
         for word in words:
             word = word.lower()
-            if word in Tables.types: result.append(word)
-            elif word in Tables.type_synonyms: result.extend(Tables.type_synonyms[word])
+            if word in Type.types: result.append(word)
+            elif word in Type.type_synonyms: result.extend(Type.type_synonyms[word])
             elif not word: continue
             else: raise Exception("Type \"{}\" not found".format(word))
         return result
@@ -56,8 +65,25 @@ class Type:
         if len(words) == 0: return ""
         if words[0] == "list":
             return Type.string(words[1:]) + "s"
-        elif words[0] in Tables.primitive_types:
+        elif words[0] in Type.primitive_types:
             return " ".join(words).lower()
         else:
             return " ".join(words).title()
 
+    def primitive(self) -> bool:
+        return all([block in Type.primitive_types for block in self._blocks])
+
+    types = {
+        "user", "repo", "gist", "name", "login", "key", "id", "url", "email",
+        "none", "list", "str"
+    }
+
+    primitive_types = {
+        "none", "list", "str"
+    }
+
+    type_synonyms = {
+        "repos": ["list", "repo"],
+        "gists": ["list", "gist"],
+        "keys": ["list", "key"]
+    }

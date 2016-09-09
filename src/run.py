@@ -1,7 +1,4 @@
-from src.main.GitHandler import GitHandler
-from src import IO
+from src.main.Handler import Handler
 
-IO.DEBUG = True
-
-handler = GitHandler(bot_nick="PythonBot")
+handler = Handler(bot_nick="PythonBot")
 handler.start()

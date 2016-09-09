@@ -1,21 +1,23 @@
 from copy import deepcopy
 from github import GithubException
+
 from src import IO
 from src.main import Simplifier
 from src.main import Tables
 from src.main.Tables import NONE
-from src.main.GitConnector import Connector, NotAutorisedUserException
 from src.main.nlp import Corrector
+from src.main.tree.Type import Type
+from src.main.Connector import Connector, NotAutorisedUserException
 
 
-class GitHandler:
+class Handler:
     def __init__(self, bot_nick="Bot", default_nick="User", max_nick_len=20):
         self._connect = False
         self._connector = Connector()
         self._storeds = Tables.create_storeds_map()
         self._builders = Tables.create_builders_map(lambda: self._connector, lambda _type: self._storeds[_type])
         self._functions = Tables.create_functions_map(lambda: self)
-        self._type_builders = Tables.create_type_builders_mpa(lambda : self._connector)
+        self._type_builders = Tables.create_type_builders_mpa(lambda: self._connector)
         self._bot_nick = bot_nick
         self._nick = default_nick
         self._default_nick = default_nick
@@ -61,7 +63,7 @@ class GitHandler:
                     for vb in vp["VB"]:
                         vb = Simplifier.simplify_word(vb)
                         if vb not in self._functions: continue
-                        self._functions[vb]({"T": ["none"], "O": None})
+                        self._functions[vb](NONE)
                 else:
                     for node in vp["NP"]:
                         args = self._build(node, [])
@@ -94,13 +96,13 @@ class GitHandler:
         try:
             data = foo["B"](*[arg["O"] for arg in args])
             if data is None:
-                self._print("{} not found".format(self.type_string(foo["T"])))
-                return {"T": ["none"], "O": None}
+                self._print("{} not found".format(str(foo["T"])))
+                return NONE
             else:
                 return {"T": foo["T"], "O": data}
         except GithubException as ex:
             if ex.status == 404:
-                self._print("{} not found".format(self.type_string(foo["T"])))
+                self._print("{} not found".format(str(foo["T"])))
             else:
                 raise ex
         except NotAutorisedUserException as _:
@@ -113,11 +115,12 @@ class GitHandler:
             noun = Simplifier.simplify_word(string)
             adjectives = Simplifier.simplify_exp(node["JJ"])
             types = Simplifier.extract_types(adjectives)
-            if len(types) == 1 and types[0] in self._builders and noun not in self._builders:
-                _type = types[0]
-                adjectives.remove(_type)
-                adjectives.append(string)
-                noun = _type
+            if len(types) == 1:
+                type_name = str(types[0])
+                if type_name in self._builders and noun not in self._builders:
+                    adjectives.remove(type_name)
+                    adjectives.append(string)
+                    noun = type_name
             relevant_shells = []
             if noun in self._builders:
                 shells = self._builders[noun]
@@ -143,15 +146,15 @@ class GitHandler:
                     holes = deepcopy(function["A"])
                     relevant_args = []
                     _args = deepcopy(args)
-                    all_primitive = False
+                    primitives = False
                     idle = False
                     mass = 0
                     fine = 1
-                    while not (idle and all_primitive) and len(holes) > 0 and len(_args) > 0:
-                        all_primitive = True
+                    while not (idle and primitives) and len(holes) > 0 and len(_args) > 0:
+                        primitives = True
                         idle = True
                         for i, arg in enumerate(_args):
-                            if arg["T"][0] not in Tables.primitive_types: all_primitive = False
+                            if not arg["T"].primitive(): primitives = False
                             if arg["T"] == holes[0]:
                                 del holes[0]
                                 del _args[i]
@@ -163,10 +166,10 @@ class GitHandler:
                             _args = [Simplifier.simplify_object(arg) for arg in _args]
                             fine += 4
 
-                        IO.debug("all_primitive = {}".format(all_primitive))
-                        IO.debug("idle = {}".format(idle))
-                        IO.debug("_args = {}".format(_args))
-                        IO.debug("holes = {}".format(holes))
+                        IO.debug(primitives, "primitives = {}")
+                        IO.debug(idle, "idle = {}")
+                        IO.debug(_args, "_args = {}")
+                        IO.debug(holes, "holes = {}")
                         IO.debug("---------------------------")
 
                     mass += len(_args)
@@ -189,15 +192,15 @@ class GitHandler:
                     mass -= 2 * len(function["A"])
                     if len(holes) > 0: mass = float("Inf")
 
-                    IO.debug("args = {}".format(relevant_args))
-                    IO.debug("function = {}".format(function))
-                    IO.debug("mass = {}".format(mass))
+                    IO.debug(relevant_args, "args = {}")
+                    IO.debug(function, "function = {}")
+                    IO.debug(mass, "mass = {}")
                     IO.debug("+++++++++++++++++++++++++++")
 
                     if relevant_function["M"] > mass:
                         relevant_function = {"M": mass, "A": relevant_args, "F": function}
 
-            IO.debug("relevant_function = {}".format(relevant_function))
+            IO.debug(relevant_function, "relevant_function = {}")
             IO.debug("===========================")
 
             if relevant_function["M"] < float("Inf"):
@@ -211,54 +214,43 @@ class GitHandler:
             return [arg for np in node["NP"] for arg in self._build(np, args + _args)]
 
     @staticmethod
-    def type_string(_type: list):
-        if len(_type) == 0: return
-        if _type[0] == "list":
-            return GitHandler.type_string(_type[1:]) + "s"
-        elif _type[0] in Tables.primitive_types:
-            return " ".join(_type).lower()
-        else:
-            return " ".join(_type).title()
-
-    @staticmethod
     def string(obj, _type: list) -> str:
         if _type[0] == "list":
             result = []
             obj = list(obj)
-            for elem in obj: result.append(GitHandler.string(elem, _type[1:]))
+            for elem in obj: result.append(Handler.string(elem, Type(*_type[1:])))
             if len(obj) == 0:
-                print(obj)
-                return "{}s not found".format(GitHandler.type_string(_type[1:]))
+                return "{} not found".format(str(_type))
             else:
                 return "\n".join(result)
-        elif _type[0] == "user":
-            login = GitHandler.string(obj.login, ["login"])
-            name = GitHandler.string(obj.name, ["name"])
-            email = GitHandler.string(obj.email, ["email"])
+        elif _type == Type("user"):
+            login = Handler.string(obj.login, ["login"])
+            name = Handler.string(obj.name, ["name"])
+            email = Handler.string(obj.email, ["email"])
             return "{}({}) <{}>".format(login, name, email)
-        elif _type[0] == "repo":
-            login = GitHandler.string(obj.owner.login, ["login"])
-            name = GitHandler.string(obj.name, ["name"])
-            _id = GitHandler.string(obj.id, ["id"])
+        elif _type == Type("repo"):
+            login = Handler.string(obj.owner.login, ["login"])
+            name = Handler.string(obj.name, ["name"])
+            _id = Handler.string(obj.id, ["id"])
             return "{}'s repo {}({})".format(login, name, _id)
-        elif _type[0] == "gist":
-            login = GitHandler.string(obj.owner.login, ["login"])
-            _id = GitHandler.string(obj.id, ["id"])
+        elif _type == Type("gist"):
+            login = Handler.string(obj.owner.login, ["login"])
+            _id = Handler.string(obj.id, ["id"])
             return "{}'s gist {}".format(login, _id)
-        elif _type[0] in ["url", "id", "email"]:
+        elif _type in [Type("url"), Type("id"), Type("email")]:
             return "{}:{}".format(_type[0], str(obj) if obj else "───║───")
-        elif _type[0] == "key":
+        elif _type == Type("key"):
             return "{}:{}({})".format(_type[0], *((str(obj.id), str(obj.key)) if obj else ("───║───", "")))
-        elif _type[0] == "str":
+        elif _type == Type("str"):
             return "\"{}\"".format(str(obj) if obj else "───║───")
-        elif _type[0] == "none":
+        elif _type == Type("none"):
             return None
         else:
             return str(obj) if obj else "───║───"
 
     def show(self, obj: dict):
         word = Simplifier.simplify_word(str(obj["O"]))
-        if obj["T"] == ["str"] and word in self._functions:
+        if obj["T"] == Type("str") and word in self._functions:
             self._functions[word]({"T": obj["T"], "O": obj["O"]})
         else:
             string = self.string(obj["O"], obj["T"])
@@ -266,20 +258,20 @@ class GitHandler:
 
     def store(self, obj: dict):
         _type = obj["T"]
-        if _type[0] == "str" and obj["O"] == "me":
+        if _type == Type("str") and obj["O"] == "me":
             try:
                 self._storeds["user"] = self._connector.user()
                 self._print("I remember it")
             except NotAutorisedUserException as _:
                 self._print("I don't know who are you")
-        elif _type[0] in self._storeds:
-            self._storeds[_type[0]] = obj["O"]
+        elif _type in self._storeds:
+            self._storeds[_type] = obj["O"]
             self._print("I remember it")
         else:
-            self._print("I can not remember " + self.type_string(_type))
+            self._print("I can not remember " + str(_type))
 
     def log(self, obj: dict):
-        if obj["T"] != ["str"]: return
+        if obj["T"] != Type("str"): return
         value = obj["O"]
         if value == "out":
             self.logout(obj)

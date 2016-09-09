@@ -1,4 +1,5 @@
-from main import Simplifier
+from src.main.tree.Type import Type
+from src.main import Simplifier
 
 synonyms = {
     "print": "show",
@@ -21,77 +22,49 @@ synonyms = {
     "sign": "log"
 }
 
-types = {
-    "user",
-    "repo",
-    "gist",
-    "name",
-    "login",
-    "key",
-    "id",
-    "url",
-    "email",
-
-    "none",
-    "list",
-    "str"
-}
-
-type_synonyms = {
-    "repos": ["list", "repo"],
-    "gists": ["list", "gist"],
-    "keys": ["list", "key"]
-}
-
-primitive_types = {
-    "none",
-    "list",
-    "str"
-}
-
-NONE = {"T": ["none"], "O": None}
+NONE = {"T": Type("none"), "O": None}
 
 similar_types = {
-    "user": {"T": ["login"], "C": lambda user: user.login},
-    "repo": {"T": ["id"], "C": lambda repo: repo.id},
-    "gist": {"T": ["id"], "C": lambda gist: gist.id},
-    "name": {"T": ["str"], "C": lambda name: str(name)},
-    "login": {"T": ["str"], "C": lambda login: str(login)},
-    "url": {"T": ["str"], "C": lambda url: str(url)},
-    "email": {"T": ["str"], "C": lambda email: str(email)},
-    "key": {"T": ["str"], "C": lambda key: str(key)},
-    "id": {"T": ["str"], "C": lambda _id: str(_id)}
+    Type("user"): {"T": Type("login"), "C": lambda user: user.login},
+    Type("repo"): {"T": Type("id"), "C": lambda repo: repo.id},
+    Type("gist"): {"T": Type("id"), "C": lambda gist: gist.id},
+    Type("name"): {"T": Type("str"), "C": lambda name: str(name)},
+    Type("login"): {"T": Type("str"), "C": lambda login: str(login)},
+    Type("url"): {"T": Type("str"), "C": lambda url: str(url)},
+    Type("email"): {"T": Type("str"), "C": lambda email: str(email)},
+    Type("key"): {"T": Type("str"), "C": lambda key: str(key)},
+    Type("id"): {"T": Type("str"), "C": lambda _id: str(_id)}
 }
 
 
 def create_type_builders_mpa(get_git_connector) -> dict:
     flat_map = {
-        "user": {"A": [["str"]],
-                 "T": ["user"],
+        "user": {"A": [Type("str")],
+                 "T": Type("user"),
                  "B": lambda login: get_git_connector().user(login)},
-        "repo": {"A": [["str"]],
-                 "T": ["repo"],
+        "repo": {"A": [Type("str")],
+                 "T": Type("repo"),
                  "B": lambda _id: get_git_connector().repo(_id)},
-        "gist": {"A": [["str"]],
-                 "T": ["gist"],
+        "gist": {"A": [Type("str")],
+                 "T": Type("gist"),
                  "B": lambda _id: get_git_connector().gist(_id)},
-        "name": {"A": [["str"]],
-                 "T": ["name"],
+        "name": {"A": [Type("str")],
+                 "T": Type("name"),
                  "B": lambda _str: _str},
-        "login": {"A": [["str"]],
-                  "T": ["login"],
+        "login": {"A": [Type("str")],
+                  "T": Type("login"),
                   "B": lambda _str: _str},
-        "key": {"A": [["str"]],
-                "T": ["key"],
+        "key": {"A": [Type("str")],
+                "T": Type("key"),
                 "B": lambda _str: _str},
-        "id": {"A": [["str"]],
-               "T": ["id"],
+        "id": {"A": [Type("str")],
+               "T": Type("id"),
                "B": lambda _str: _str},
-        "url": {"A": [["str"]],
-                "T": ["url"],
+        "url": {"A": [Type("str")],
+                "T": Type("url"),
                 "B": lambda _str: _str},
-        "email": {"A": [["str"]],
-                  "T": ["email"],
+        "email": {"A": [Type("str")],
+                  "T": Type("email"),
                   "B": lambda _str: _str}
     }
     return flat_map
@@ -99,9 +72,9 @@ def create_type_builders_mpa(get_git_connector) -> dict:
 
 def create_storeds_map() -> dict:
     flat_map = {
-        "user": None,
-        "repo": None,
-        "gist": None
+        Type("user"): None,
+        Type("repo"): None,
+        Type("gist"): None
     }
     return flat_map
 
@@ -123,158 +96,158 @@ def create_builders_map(get_git_connector, get_stored) -> dict:
     flat_map = {
         "repos": [
             {"JJ": [], "F": [
-                {"A": [["str"]],
-                 "T": type_synonyms["repos"],
+                {"A": [Type("str")],
+                 "T": Type("repos"),
                  "B": lambda login: list(get_git_connector().user(login).get_repos())},
-                {"A": [["login"]],
-                 "T": type_synonyms["repos"],
+                {"A": [Type("login")],
+                 "T": Type("repos"),
                  "B": lambda login: list(get_git_connector().user(login).get_repos())},
-                {"A": [["user"]],
-                 "T": type_synonyms["repos"],
+                {"A": [Type("user")],
+                 "T": Type("repos"),
                  "B": lambda user: list(user.get_repos())}
             ]},
             {"JJ": ["my"], "F": [
                 {"A": [],
-                 "T": type_synonyms["repos"],
+                 "T": Type("repos"),
                  "B": lambda: list(get_git_connector().user().get_repos())}
             ]},
             {"JJ": ["starred"], "F": [
-                {"A": [["str"]],
-                 "T": type_synonyms["repos"],
+                {"A": [Type("str")],
+                 "T": Type("repos"),
                  "B": lambda login: list(get_git_connector().user(login).get_starred())},
-                {"A": [["login"]],
-                 "T": type_synonyms["repos"],
+                {"A": [Type("login")],
+                 "T": Type("repos"),
                  "B": lambda login: list(get_git_connector().user(login).get_starred())},
-                {"A": [["user"]],
-                 "T": type_synonyms["repos"],
+                {"A": [Type("user")],
+                 "T": Type("repos"),
                  "B": lambda user: list(user.get_starred())}
             ]}
         ],
         "gists": [
             {"JJ": [], "F": [
-                {"A": [["str"]],
-                 "T": type_synonyms["gists"],
+                {"A": [Type("str")],
+                 "T": Type("gists"),
                  "B": lambda login: list(get_git_connector().user(login).get_gists())},
-                {"A": [["login"]],
-                 "T": type_synonyms["gists"],
+                {"A": [Type("login")],
+                 "T": Type("gists"),
                  "B": lambda login: list(get_git_connector().user(login).get_gists())},
-                {"A": [["user"]],
-                 "T": type_synonyms["gists"],
+                {"A": [Type("user")],
+                 "T": Type("gists"),
                  "B": lambda user: list(user.get_gists())}
             ]},
             {"JJ": ["my"], "F": [
                 {"A": [],
-                 "T": type_synonyms["gists"],
+                 "T": Type("gists"),
                  "B": lambda: list(get_git_connector().user().get_gists())}
             ]}
         ],
         "keys": [
             {"JJ": [], "F": [
-                {"A": [["str"]],
-                 "T": type_synonyms["keys"],
+                {"A": [Type("str")],
+                 "T": Type("keys"),
                  "B": lambda login: list(get_git_connector().user(login).get_keys())},
-                {"A": [["login"]],
-                 "T": type_synonyms["keys"],
+                {"A": [Type("login")],
+                 "T": Type("keys"),
                  "B": lambda login: list(get_git_connector().user(login).get_keys())},
-                {"A": [["user"]],
-                 "T": type_synonyms["keys"],
+                {"A": [Type("user")],
+                 "T": Type("keys"),
                  "B": lambda user: list(user.get_keys())}
             ]},
             {"JJ": ["my"], "F": [
                 {"A": [],
-                 "T": type_synonyms["keys"],
+                 "T": Type("keys"),
                  "B": lambda: list(get_git_connector().user().get_keys())}
             ]}
         ],
         "name": [
             {"JJ": [], "F": [
-                {"A": [["str"]],
-                 "T": ["name"],
+                {"A": [Type("str")],
+                 "T": Type("name"),
                  "B": lambda login: get_git_connector().user(login).name},
-                {"A": [["login"]],
-                 "T": ["name"],
+                {"A": [Type("login")],
+                 "T": Type("name"),
                  "B": lambda login: get_git_connector().user(login).name},
-                {"A": [["user"]],
-                 "T": ["name"],
+                {"A": [Type("user")],
+                 "T": Type("name"),
                  "B": lambda user: user.name},
-                {"A": [["repo"]],
-                 "T": ["name"],
+                {"A": [Type("repo")],
+                 "T": Type("name"),
                  "B": lambda repo: repo.name}
             ]},
             {"JJ": ["my"], "F": [
                 {"A": [],
-                 "T": ["name"],
+                 "T": Type("name"),
                  "B": lambda: get_git_connector().user().name}
             ]}
         ],
         "email": [
             {"JJ": [], "F": [
-                {"A": [["str"]],
-                 "T": ["email"],
+                {"A": [Type("str")],
+                 "T": Type("email"),
                  "B": lambda login: get_git_connector().user(login).email},
-                {"A": [["login"]],
-                 "T": ["email"],
+                {"A": [Type("login")],
+                 "T": Type("email"),
                  "B": lambda login: get_git_connector().user(login).email},
-                {"A": [["user"]],
-                 "T": ["email"],
+                {"A": [Type("user")],
+                 "T": Type("email"),
                  "B": lambda user: user.email},
-                {"A": [["email"]],
-                 "T": ["email"],
+                {"A": [Type("email")],
+                 "T": Type("email"),
                  "B": lambda email: email}
             ]},
             {"JJ": ["my"], "F": [
                 {"A": [],
-                 "T": ["email"],
+                 "T": Type("email"),
                  "B": lambda: get_git_connector().user().email}
             ]}
         ],
         "login": [
             {"JJ": [], "F": [
-                {"A": [["str"]],
-                 "T": ["login"],
+                {"A": [Type("str")],
+                 "T": Type("login"),
                  "B": lambda login: get_git_connector().user(login).login},
-                {"A": [["login"]],
-                 "T": ["login"],
+                {"A": [Type("login")],
+                 "T": Type("login"),
                  "B": lambda login: get_git_connector().user(login).login},
-                {"A": [["user"]],
-                 "T": ["login"],
+                {"A": [Type("user")],
+                 "T": Type("login"),
                  "B": lambda user: user.login}
             ]},
             {"JJ": ["my"], "F": [
                 {"A": [],
-                 "T": ["login"],
+                 "T": Type("login"),
                  "B": lambda: get_git_connector().user().login}
             ]}
         ],
         "url": [
             {"JJ": [], "F": [
-                {"A": [["str"]],
-                 "T": ["url"],
+                {"A": [Type("str")],
+                 "T": Type("url"),
                  "B": lambda login: get_git_connector().user(login).url},
-                {"A": [["login"]],
-                 "T": ["url"],
+                {"A": [Type("login")],
+                 "T": Type("url"),
                  "B": lambda login: get_git_connector().user(login).url},
-                {"A": [["user"]],
-                 "T": ["url"],
+                {"A": [Type("user")],
+                 "T": Type("url"),
                  "B": lambda user: user.url},
-                {"A": [["url"]],
-                 "T": ["url"],
+                {"A": [Type("url")],
+                 "T": Type("url"),
                  "B": lambda url: url}
             ]},
             {"JJ": ["my"], "F": [
                 {"A": [],
-                 "T": ["url"],
+                 "T": Type("url"),
                  "B": lambda: get_git_connector().user().url}
             ]},
             {"JJ": ["orgs"], "F": [
-                {"A": [["str"]],
-                 "T": ["url"],
+                {"A": [Type("str")],
+                 "T": Type("url"),
                  "B": lambda login: get_git_connector().user(login).organizations_url},
-                {"A": [["login"]],
-                 "T": ["url"],
+                {"A": [Type("login")],
+                 "T": Type("url"),
                  "B": lambda login: get_git_connector().user(login).organizations_url},
-                {"A": [["user"]],
-                 "T": ["url"],
+                {"A": [Type("user")],
+                 "T": Type("url"),
                  "B": lambda user: user.organizations_url}
             ]},
             {"JJ": ["my", "orgs"], "F": [
@@ -283,179 +256,179 @@ def create_builders_map(get_git_connector, get_stored) -> dict:
                  "B": lambda: get_git_connector().user().organizations_url}
             ]},
             {"JJ": ["avatar"], "F": [
-                {"A": [["str"]],
-                 "T": ["url"],
+                {"A": [Type("str")],
+                 "T": Type("url"),
                  "B": lambda login: get_git_connector().user(login).avatar_url},
-                {"A": [["login"]],
-                 "T": ["url"],
+                {"A": [Type("login")],
+                 "T": Type("url"),
                  "B": lambda login: get_git_connector().user(login).avatar_url},
-                {"A": [["user"]],
-                 "T": ["url"],
+                {"A": [Type("user")],
+                 "T": Type("url"),
                  "B": lambda user: user.avatar_url}
             ]},
             {"JJ": ["my", "avatar"], "F": [
                 {"A": [],
-                 "T": ["url"],
+                 "T": Type("url"),
                  "B": lambda: get_git_connector().user().avatar_url}
             ]}
         ],
         "user": [
             {"JJ": [], "F": [
-                {"A": [["str"]],
-                 "T": ["user"],
+                {"A": [Type("str")],
+                 "T": Type("user"),
                  "B": lambda login: get_git_connector().user(login)},
-                {"A": [["login"]],
-                 "T": ["user"],
+                {"A": [Type("login")],
+                 "T": Type("user"),
                  "B": lambda login: get_git_connector().user(login)}
             ]},
             {"JJ": ["this"], "F": [
                 {"A": [],
-                 "T": ["user"],
-                 "B": lambda: get_stored("user")}
+                 "T": Type("user"),
+                 "B": lambda: get_stored(Type("user"))}
             ]}
         ],
         "repo": [
             {"JJ": [], "F": [
-                {"A": [["str"], ["str"]],
-                 "T": ["repo"],
+                {"A": [Type("str"), Type("str")],
+                 "T": Type("repo"),
                  "B": lambda login, name: get_git_connector().user(login).get_repo(name)},
-                {"A": [["str"], ["name"]],
-                 "T": ["repo"],
+                {"A": [Type("str"), Type("name")],
+                 "T": Type("repo"),
                  "B": lambda login, name: get_git_connector().user(login).get_repo(name)},
-                {"A": [["str"], ["id"]],
-                 "T": ["repo"],
+                {"A": [Type("str"), Type("id")],
+                 "T": Type("repo"),
                  "B": lambda login, _id: get_git_connector().user(login).get_repo(
                      get_git_connector().repo(int(_id)).name) if _id.isnumeric() else None},
-                {"A": [["login"], ["str"]],
-                 "T": ["repo"],
+                {"A": [Type("login"), Type("str")],
+                 "T": Type("repo"),
                  "B": lambda login, name: get_git_connector().user(login).get_repo(name)},
-                {"A": [["login"], ["name"]],
-                 "T": ["repo"],
+                {"A": [Type("login"), Type("name")],
+                 "T": Type("repo"),
                  "B": lambda login, name: get_git_connector().user(login).get_repo(name)},
-                {"A": [["login"], ["id"]],
-                 "T": ["repo"],
+                {"A": [Type("login"), Type("id")],
+                 "T": Type("repo"),
                  "B": lambda login, _id: get_git_connector().user(login).get_repo(
                      get_git_connector().repo(int(_id)).name) if _id.isnumeric() else None},
-                {"A": [["user"], ["str"]],
-                 "T": ["repo"],
+                {"A": [Type("user"), Type("str")],
+                 "T": Type("repo"),
                  "B": lambda user, name: user.get_repo(name)},
-                {"A": [["user"], ["name"]],
-                 "T": ["repo"],
+                {"A": [Type("user"), Type("name")],
+                 "T": Type("repo"),
                  "B": lambda user, name: user.get_repo(name)},
-                {"A": [["user"], ["id"]],
-                 "T": ["repo"],
+                {"A": [Type("user"), Type("id")],
+                 "T": Type("repo"),
                  "B": lambda user, _id: user.get_repo(
                      get_git_connector().repo(int(_id)).name) if _id.isnumeric() else None},
-                {"A": [["str"]],
-                 "T": ["repo"],
+                {"A": [Type("str")],
+                 "T": Type("repo"),
                  "B": lambda _id: get_git_connector().repo(int(_id)) if _id.isnumeric() else None},
-                {"A": [["id"]],
-                 "T": ["repo"],
+                {"A": [Type("id")],
+                 "T": Type("repo"),
                  "B": lambda _id: get_git_connector().repo(int(_id)) if _id.isnumeric() else None},
-                {"A": [["list", "repo"], ["str"]],
-                 "T": ["repo"],
+                {"A": [Type("repos"), Type("str")],
+                 "T": Type("repo"),
                  "B": lambda _list, _str: _list[Simplifier.number(_str)]}
             ]},
             {"JJ": ["this"], "F": [
                 {"A": [],
-                 "T": ["repo"],
-                 "B": lambda: get_stored("repo")}
+                 "T": Type("repo"),
+                 "B": lambda: get_stored(Type("repo"))}
             ]},
             {"JJ": ["my"], "F": [
-                {"A": [["str"]],
-                 "T": ["repo"],
+                {"A": [Type("str")],
+                 "T": Type("repo"),
                  "B": lambda name: get_git_connector().user().get_repo(name)},
-                {"A": [["name"]],
-                 "T": ["repo"],
+                {"A": [Type("name")],
+                 "T": Type("repo"),
                  "B": lambda name: get_git_connector().user().get_repo(name)},
-                {"A": [["id"]],
-                 "T": ["repo"],
+                {"A": [Type("id")],
+                 "T": Type("repo"),
                  "B": lambda _id: get_git_connector().user().get_repo(
                      get_git_connector().repo(_id).name) if _id.isnumeric() else None}
             ]}
         ],
         "gist": [
             {"JJ": [], "F": [
-                {"A": [["str"], ["str"]],
-                 "T": ["gist"],
+                {"A": [Type("str"), Type("str")],
+                 "T": Type("gist"),
                  "B": lambda login, name: get_git_connector().user(login).get_gist(name)},
-                {"A": [["str"], ["id"]],
-                 "T": ["gist"],
+                {"A": [Type("str"), Type("id")],
+                 "T": Type("gist"),
                  "B": lambda login, name: get_git_connector().user(login).get_gist(name)},
-                {"A": [["login"], ["str"]],
-                 "T": ["gist"],
+                {"A": [Type("login"), Type("str")],
+                 "T": Type("gist"),
                  "B": lambda login, name: get_git_connector().user(login).get_gist(name)},
-                {"A": [["login"], ["id"]],
-                 "T": ["gist"],
+                {"A": [Type("login"), Type("id")],
+                 "T": Type("gist"),
                  "B": lambda login, name: get_git_connector().user(login).get_gist(name)},
-                {"A": [["user"], ["str"]],
-                 "T": ["gist"],
+                {"A": [Type("user"), Type("str")],
+                 "T": Type("gist"),
                  "B": lambda user, _id: user.get_gist(_id)},
-                {"A": [["user"], ["id"]],
-                 "T": ["gist"],
+                {"A": [Type("user"), Type("id")],
+                 "T": Type("gist"),
                  "B": lambda user, _id: user.get_gist(_id)},
-                {"A": [["str"]],
-                 "T": ["gist"],
+                {"A": [Type("str")],
+                 "T": Type("gist"),
                  "B": lambda _id: get_git_connector().gist(_id)},
-                {"A": [["id"]],
-                 "T": ["gist"],
+                {"A": [Type("id")],
+                 "T": Type("gist"),
                  "B": lambda _id: get_git_connector().gist(_id)}
             ]},
             {"JJ": ["this"], "F": [
                 {"A": [],
-                 "T": ["repo"],
-                 "B": lambda: get_stored("repo")}
+                 "T": Type("repo"),
+                 "B": lambda: get_stored(Type("repo"))}
             ]},
             {"JJ": ["my"], "F": [
-                {"A": [["str"]],
-                 "T": ["repo"],
+                {"A": [Type("str")],
+                 "T": Type("repo"),
                  "B": lambda name: get_git_connector().user().get_repo(name)},
-                {"A": [["name"]],
-                 "T": ["repo"],
+                {"A": [Type("name")],
+                 "T": Type("repo"),
                  "B": lambda name: get_git_connector().user().get_repo(name)},
-                {"A": [["id"]],
-                 "T": ["repo"],
+                {"A": [Type("id")],
+                 "T": Type("repo"),
                  "B": lambda _id: get_git_connector().user().get_repo(get_git_connector().repo(_id).name)}
             ]}
         ],
         "id": [
             {"JJ": [], "F": [
-                {"A": [["str"]],
-                 "T": ["id"],
+                {"A": [Type("str")],
+                 "T": Type("id"),
                  "B": lambda login: get_git_connector().user(login).id},
-                {"A": [["login"]],
-                 "T": ["id"],
+                {"A": [Type("login")],
+                 "T": Type("id"),
                  "B": lambda login: get_git_connector().user(login).id},
-                {"A": [["user"]],
-                 "T": ["id"],
+                {"A": [Type("user")],
+                 "T": Type("id"),
                  "B": lambda user: user.id},
-                {"A": [["repo"]],
-                 "T": ["id"],
+                {"A": [Type("repo")],
+                 "T": Type("id"),
                  "B": lambda repo: repo.id},
-                {"A": [["gist"]],
-                 "T": ["id"],
+                {"A": [Type("gist")],
+                 "T": Type("id"),
                  "B": lambda gist: gist.id},
-                {"A": [["key"]],
-                 "T": ["id"],
+                {"A": [Type("key")],
+                 "T": Type("id"),
                  "B": lambda key: key.id}
             ]},
             {"JJ": ["my"], "F": [
                 {"A": [],
-                 "T": ["id"],
+                 "T": Type("id"),
                  "B": lambda: get_git_connector().user().id}
             ]}
         ],
         "key": [
             {"JJ": [], "F": [
-                {"A": [["str"]],
-                 "T": ["key"],
+                {"A": [Type("str")],
+                 "T": Type("key"),
                  "B": lambda _str: _str}
             ]}
         ],
         "element": [
             {"JJ": [], "F": [
-                {"A": [["list", "repo"], ["str"]],
-                 "T": ["repo"],
+                {"A": [Type("repos"), Type("str")],
+                 "T": Type("repo"),
                  "B": lambda _list, _str: _list[Simplifier.number(_str)]}
             ]}
         ]

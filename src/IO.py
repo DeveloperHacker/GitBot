@@ -1,18 +1,17 @@
 import os
 import sys
 import fcntl
+from src.main import Utils
 from getpass import getpass
 
-DEBUG = False
 
-
-def write(obj):
-    sys.stdout.write(str(obj))
+def write(obj, form="{}"):
+    sys.stdout.write(form.format(Utils.string(obj)))
     sys.stdout.flush()
 
 
-def writeln(obj):
-    sys.stdout.write(str(obj) + "\n")
+def writeln(obj, form="{}"):
+    sys.stdout.write(form.format(Utils.string(obj)) + '\n')
     sys.stdout.flush()
 
 
@@ -32,5 +31,5 @@ def hreadln(prompt: str) -> str:
     return getpass(prompt)
 
 
-def debug(obj) -> str:
-    if DEBUG: writeln(obj)
+def debug(obj, form="{}"):
+    if os.getenv("DEBUG") == "true": writeln(obj, form)
