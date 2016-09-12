@@ -29,7 +29,7 @@ class AutoChat:
         "adssadasd",
         "a developerhacker's repo 64680022",
         "the name at user Saloed",
-        "a repo gitbot of developerhacker"
+        "a repo gitbot of developerhacker",
         "bye"
     ]
 

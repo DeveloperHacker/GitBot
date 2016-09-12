@@ -1,10 +1,11 @@
 from copy import deepcopy
 from github import GithubException
 
+from src.main.tree.Object import Object, LabeledObject
+from src.main.tree.Object import null
 from src import IO
 from src.main import Simplifier
 from src.main import Tables
-from src.main.Tables import NONE
 from src.main.nlp import Corrector
 from src.main.tree.Type import Type
 from src.main.Connector import Connector, NotAutorisedUserException
@@ -63,7 +64,7 @@ class Handler:
                     for vb in vp["VB"]:
                         vb = Simplifier.simplify_word(vb)
                         if vb not in self._functions: continue
-                        self._functions[vb](NONE)
+                        self._functions[vb](null)
                 else:
                     for node in vp["NP"]:
                         args = self._build(node, [])
@@ -94,12 +95,12 @@ class Handler:
 
     def _execute(self, foo: dict, args: list):
         try:
-            data = foo["B"](*[arg["O"] for arg in args])
+            data = foo["B"](*[arg.object for arg in args])
             if data is None:
                 self._print("{} not found".format(str(foo["T"])))
-                return NONE
+                return null
             else:
-                return {"T": foo["T"], "O": data}
+                return Object(foo["T"], data)
         except GithubException as ex:
             if ex.status == 404:
                 self._print("{} not found".format(str(foo["T"])))
@@ -107,14 +108,14 @@ class Handler:
                 raise ex
         except NotAutorisedUserException as _:
             self._print("I don't know who are you")
-        return NONE
+        return null
 
     def _build(self, node: dict, args: list) -> list:
         if "NN" in node:
             string = node["NN"]
             noun = Simplifier.simplify_word(string)
             adjectives = Simplifier.simplify_exp(node["JJ"])
-            types = Simplifier.extract_types(adjectives)
+            types = Type.extract(adjectives)
             if len(types) == 1:
                 type_name = str(types[0])
                 if type_name in self._builders and noun not in self._builders:
@@ -154,8 +155,8 @@ class Handler:
                         primitives = True
                         idle = True
                         for i, arg in enumerate(_args):
-                            if not arg["T"].primitive(): primitives = False
-                            if arg["T"] == holes[0]:
+                            if not arg.type.isprimitive(): primitives = False
+                            if arg.type == holes[0]:
                                 del holes[0]
                                 del _args[i]
                                 relevant_args.append(arg)
@@ -163,7 +164,7 @@ class Handler:
                                 idle = False
                                 break
                         if idle:
-                            _args = [Simplifier.simplify_object(arg) for arg in _args]
+                            for arg in _args: arg.simplify()
                             fine += 4
 
                         IO.debug(primitives, "primitives = {}")
@@ -173,7 +174,7 @@ class Handler:
                         IO.debug("---------------------------")
 
                     mass += len(_args)
-                    _args = [Simplifier.get_object(jj) for jj in adjectives]
+                    _args = [Object.valueOf(jj) for jj in adjectives]
                     idle = False
                     fine = 1
                     if noun in self._type_builders and len(holes) == 1 and len(holes) == len(function["A"]):
@@ -181,8 +182,8 @@ class Handler:
                         if holes == fun["A"]: function = fun
                     while not idle and len(holes) > 0 and len(_args) > 0:
                         idle = True
-                        for i, arg in reversed(list(enumerate(_args))):
-                            if arg["T"] == holes[0]:
+                        for i, arg in enumerate(reversed(_args)):
+                            if arg.type == holes[0]:
                                 del holes[0]
                                 relevant_args.append(arg)
                                 mass += (i + 1) * fine
@@ -206,84 +207,47 @@ class Handler:
             if relevant_function["M"] < float("Inf"):
                 constructed_object = self._execute(relevant_function["F"], relevant_function["A"])
             if constructed_object is None:
-                obj = Simplifier.get_object(string)
-                constructed_object = {"T": obj["T"], "O": obj["O"]}
+                constructed_object = Object.valueOf(string)
             return [constructed_object]
         else:
-            _args = [{**{"IN": pp["IN"]}, **arg} for pp in node["PP"] for np in pp["NP"] for arg in self._build(np, [])]
+            _args = [LabeledObject(pp["IN"], arg) for pp in node["PP"] for np in pp["NP"] for arg in self._build(np, [])]
             return [arg for np in node["NP"] for arg in self._build(np, args + _args)]
 
-    @staticmethod
-    def string(obj, _type: list) -> str:
-        if _type[0] == "list":
-            result = []
-            obj = list(obj)
-            for elem in obj: result.append(Handler.string(elem, Type(*_type[1:])))
-            if len(obj) == 0:
-                return "{} not found".format(str(_type))
-            else:
-                return "\n".join(result)
-        elif _type == Type("user"):
-            login = Handler.string(obj.login, ["login"])
-            name = Handler.string(obj.name, ["name"])
-            email = Handler.string(obj.email, ["email"])
-            return "{}({}) <{}>".format(login, name, email)
-        elif _type == Type("repo"):
-            login = Handler.string(obj.owner.login, ["login"])
-            name = Handler.string(obj.name, ["name"])
-            _id = Handler.string(obj.id, ["id"])
-            return "{}'s repo {}({})".format(login, name, _id)
-        elif _type == Type("gist"):
-            login = Handler.string(obj.owner.login, ["login"])
-            _id = Handler.string(obj.id, ["id"])
-            return "{}'s gist {}".format(login, _id)
-        elif _type in [Type("url"), Type("id"), Type("email")]:
-            return "{}:{}".format(_type[0], str(obj) if obj else "───║───")
-        elif _type == Type("key"):
-            return "{}:{}({})".format(_type[0], *((str(obj.id), str(obj.key)) if obj else ("───║───", "")))
-        elif _type == Type("str"):
-            return "\"{}\"".format(str(obj) if obj else "───║───")
-        elif _type == Type("none"):
-            return None
+    def show(self, obj: Object):
+        if obj.type == Type("str"):
+            word = Simplifier.simplify_word(str(obj.object))
+            if word in self._functions: self._functions[word](obj)
         else:
-            return str(obj) if obj else "───║───"
+            string = str(obj)
+            if not (string + ' ').isspace(): self._print(string)
 
-    def show(self, obj: dict):
-        word = Simplifier.simplify_word(str(obj["O"]))
-        if obj["T"] == Type("str") and word in self._functions:
-            self._functions[word]({"T": obj["T"], "O": obj["O"]})
-        else:
-            string = self.string(obj["O"], obj["T"])
-            if string: self._print(string)
-
-    def store(self, obj: dict):
-        _type = obj["T"]
-        if _type == Type("str") and obj["O"] == "me":
+    def store(self, obj: Object):
+        if obj.type == Type("str") and obj.object == "me":
             try:
                 self._storeds["user"] = self._connector.user()
                 self._print("I remember it")
             except NotAutorisedUserException as _:
                 self._print("I don't know who are you")
-        elif _type in self._storeds:
-            self._storeds[_type] = obj["O"]
+        elif obj.type in self._storeds:
+            self._storeds[obj.type] = obj.object
             self._print("I remember it")
         else:
-            self._print("I can not remember " + str(_type))
+            self._print("I can not remember " + str(obj.type))
 
-    def log(self, obj: dict):
-        if obj["T"] != Type("str"): return
-        value = obj["O"]
+    def log(self, obj: Object):
+        if obj.type != Type("str"): return
+        value = obj.object
         if value == "out":
             self.logout(obj)
         elif value == "in":
             self.login(obj)
 
-    def logout(self, _: dict):
+    def logout(self, _: Object):
         if self._connector.authorised():
             self._connector.logout()
             self._nick = self._default_nick
 
-    def login(self, _: dict):
+    def login(self, _: Object):
         if self._connector.authorised():
             self._print("logout before you login again")
         else:
@@ -291,15 +255,15 @@ class Handler:
             login = self._custom_read("login")
             self._print("enter password")
             password = self._hide_read()
-            if not self._connector.authorise(login, password):
+            if not self._connector.isauthorised(login, password):
                 self._nick = self._default_nick
                 self._print("incorrect login or password")
             else:
                 self._nick = self._connector.authorised()
 
-    def hello(self, _: dict):
+    def hello(self, _: Object):
         self._print("=)")
 
-    def bye(self, _: dict):
+    def bye(self, _: Object):
         self._print("bye")
         self.stop()

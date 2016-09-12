@@ -14,7 +14,7 @@ class Connector:
         self._git = Github()
         self._authorised = None
 
-    def authorise(self, login: str, pword: str) -> bool:
+    def isauthorised(self, login: str, pword: str) -> bool:
         self._git = Github(login, pword)
         try:
             self._authorised = self._git.get_user().login

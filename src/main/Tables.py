@@ -1,3 +1,4 @@
+from src.main.nlp.Number import Number
 from src.main.tree.Type import Type
 from src.main import Simplifier
 
@@ -20,20 +21,6 @@ synonyms = {
     "o/": "hello",
     "username": "login",
     "sign": "log"
-}
-
-NONE = {"T": Type("none"), "O": None}
-
-similar_types = {
-    Type("user"): {"T": Type("login"), "C": lambda user: user.login},
-    Type("repo"): {"T": Type("id"), "C": lambda repo: repo.id},
-    Type("gist"): {"T": Type("id"), "C": lambda gist: gist.id},
-    Type("name"): {"T": Type("str"), "C": lambda name: str(name)},
-    Type("login"): {"T": Type("str"), "C": lambda login: str(login)},
-    Type("url"): {"T": Type("str"), "C": lambda url: str(url)},
-    Type("email"): {"T": Type("str"), "C": lambda email: str(email)},
-    Type("key"): {"T": Type("str"), "C": lambda key: str(key)},
-    Type("id"): {"T": Type("str"), "C": lambda _id: str(_id)}
 }
 
 
@@ -184,13 +171,13 @@ def create_builders_map(get_git_connector, get_stored) -> dict:
             {"JJ": [], "F": [
                 {"A": [Type("str")],
                  "T": Type("email"),
-                 "B": lambda login: get_git_connector().user(login).email},
+                 "B": lambda login: get_git_connector().user(login).isemail},
                 {"A": [Type("login")],
                  "T": Type("email"),
-                 "B": lambda login: get_git_connector().user(login).email},
+                 "B": lambda login: get_git_connector().user(login).isemail},
                 {"A": [Type("user")],
                  "T": Type("email"),
-                 "B": lambda user: user.email},
+                 "B": lambda user: user.isemail},
                 {"A": [Type("email")],
                  "T": Type("email"),
                  "B": lambda email: email}
@@ -198,7 +185,7 @@ def create_builders_map(get_git_connector, get_stored) -> dict:
             {"JJ": ["my"], "F": [
                 {"A": [],
                  "T": Type("email"),
-                 "B": lambda: get_git_connector().user().email}
+                 "B": lambda: get_git_connector().user().isemail}
             ]}
         ],
         "login": [
@@ -223,13 +210,13 @@ def create_builders_map(get_git_connector, get_stored) -> dict:
             {"JJ": [], "F": [
                 {"A": [Type("str")],
                  "T": Type("url"),
-                 "B": lambda login: get_git_connector().user(login).url},
+                 "B": lambda login: get_git_connector().user(login).isurl},
                 {"A": [Type("login")],
                  "T": Type("url"),
-                 "B": lambda login: get_git_connector().user(login).url},
+                 "B": lambda login: get_git_connector().user(login).isurl},
                 {"A": [Type("user")],
                  "T": Type("url"),
-                 "B": lambda user: user.url},
+                 "B": lambda user: user.isurl},
                 {"A": [Type("url")],
                  "T": Type("url"),
                  "B": lambda url: url}
@@ -237,7 +224,7 @@ def create_builders_map(get_git_connector, get_stored) -> dict:
             {"JJ": ["my"], "F": [
                 {"A": [],
                  "T": Type("url"),
-                 "B": lambda: get_git_connector().user().url}
+                 "B": lambda: get_git_connector().user().isurl}
             ]},
             {"JJ": ["orgs"], "F": [
                 {"A": [Type("str")],
@@ -279,7 +266,13 @@ def create_builders_map(get_git_connector, get_stored) -> dict:
                  "B": lambda login: get_git_connector().user(login)},
                 {"A": [Type("login")],
                  "T": Type("user"),
-                 "B": lambda login: get_git_connector().user(login)}
+                 "B": lambda login: get_git_connector().user(login)},
+                {"A": [Type("users"), Type("str")],
+                 "T": Type("user"),
+                 "B": lambda _list, _str: _list[Simplifier.number(_str)]},
+                {"A": [Type("users"), Type("number")],
+                 "T": Type("user"),
+                 "B": lambda _list, number: _list[number.value]}
             ]},
             {"JJ": ["this"], "F": [
                 {"A": [],
@@ -327,7 +320,10 @@ def create_builders_map(get_git_connector, get_stored) -> dict:
                  "B": lambda _id: get_git_connector().repo(int(_id)) if _id.isnumeric() else None},
                 {"A": [Type("repos"), Type("str")],
                  "T": Type("repo"),
-                 "B": lambda _list, _str: _list[Simplifier.number(_str)]}
+                 "B": lambda _list, _str: _list[Simplifier.number(_str)] if Number.isnumber(_str) else None},
+                {"A": [Type("repos"), Type("number")],
+                 "T": Type("repo"),
+                 "B": lambda _list, number: _list[number.value]}
             ]},
             {"JJ": ["this"], "F": [
                 {"A": [],
@@ -372,7 +368,13 @@ def create_builders_map(get_git_connector, get_stored) -> dict:
                  "B": lambda _id: get_git_connector().gist(_id)},
                 {"A": [Type("id")],
                  "T": Type("gist"),
-                 "B": lambda _id: get_git_connector().gist(_id)}
+                 "B": lambda _id: get_git_connector().gist(_id)},
+                {"A": [Type("gists"), Type("str")],
+                 "T": Type("gist"),
+                 "B": lambda _list, _str: _list[Simplifier.number(_str)] if Number.isnumber(_str) else None},
+                {"A": [Type("gists"), Type("number")],
+                 "T": Type("gist"),
+                 "B": lambda _list, number: _list[number.value]}
             ]},
             {"JJ": ["this"], "F": [
                 {"A": [],
@@ -423,13 +425,6 @@ def create_builders_map(get_git_connector, get_stored) -> dict:
                 {"A": [Type("str")],
                  "T": Type("key"),
                  "B": lambda _str: _str}
-            ]}
-        ],
-        "element": [
-            {"JJ": [], "F": [
-                {"A": [Type("repos"), Type("str")],
-                 "T": Type("repo"),
-                 "B": lambda _list, _str: _list[Simplifier.number(_str)]}
             ]}
         ]
     }

@@ -30,8 +30,16 @@ if os.getenv("SRC_MAIN_NLP_INIT_NUMBER") == "false":
     class Number:
         _units, _tens, _scales, _numbers = __static__()
 
+        @property
+        def value(self) -> int:
+            return self._value
+
+        @property
+        def words(self) -> list:
+            return self._words
+
         def __init__(self, words: list):
-            self._value = Number.number(words)
+            self._value = Number.integer(words)
             self._words = words
 
         def __int__(self) -> int:
@@ -48,7 +56,7 @@ if os.getenv("SRC_MAIN_NLP_INIT_NUMBER") == "false":
             result = []
             number = []
             for word in words:
-                if Number.is_number([word]):
+                if Number.isnumber([word]):
                     number.append(word)
                 elif len(number) != 0:
                     result.append(Number(number))
@@ -65,7 +73,7 @@ if os.getenv("SRC_MAIN_NLP_INIT_NUMBER") == "false":
             pass
 
         @staticmethod
-        def number(words: list) -> int:
+        def integer(words: list) -> int:
             result = []
             current = None
             prev_power = float("inf")
@@ -101,7 +109,7 @@ if os.getenv("SRC_MAIN_NLP_INIT_NUMBER") == "false":
             return 0 if result == '' else int(result)
 
         @staticmethod
-        def is_number(words) -> bool:
+        def isnumber(words) -> bool:
             for word in words:
                 word.lower()
                 if len(word) > 1 and word[-1] == 's': word = word[:-1]

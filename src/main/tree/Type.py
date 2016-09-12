@@ -1,15 +1,22 @@
 import re
 
-from src.main.nlp.Number import Number
-
 
 class Type:
+
+    @property
+    def blocks(self) -> tuple:
+        return self._blocks
+
     def __init__(self, *args):
-        self._blocks = Type.parse(list(args))
+        self._blocks = tuple(Type.parse(list(args)))
         if len(self._blocks) == 0: raise Exception("Created empty type")
 
     def __str__(self) -> str:
-        return Type.string(self._blocks)
+        if len(self._blocks) == 0: return ""
+        if self._blocks[0] == "list":
+            return str(Type(*self._blocks[1:])) + "s"
+        else:
+            return " ".join(self._blocks).lower()
 
     def __getitem__(self, index):
         return self._blocks[index]
@@ -37,15 +44,7 @@ class Type:
         return result
 
     @staticmethod
-    def type(string: str):
-        if Type.url(string): return {"T": ["url"], "O": string}
-        elif Type.email(string): return {"T": ["email"], "O": string}
-        elif Number.is_number(string.split()): return {"T": ["number"], "O": string}
-        elif string.isnumeric(): return {"T": ["id"], "O": string}
-        else: return {"T": ["str"], "O": string}
-
-    @staticmethod
-    def url(string: str) -> bool:
+    def isurl(string: str) -> bool:
         regex = re.compile(
             r'^(?:http|ftp)s?://'
             r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|'
@@ -56,33 +55,33 @@ class Type:
         return re.match(regex, string) is not None
 
     @staticmethod
-    def email(string: str) -> bool:
+    def isemail(string: str) -> bool:
         regex = re.compile("[^@]+@[^@]+\.[^@]+")
         return re.match(regex, string) is not None
 
     @staticmethod
-    def string(words: list):
-        if len(words) == 0: return ""
-        if words[0] == "list":
-            return Type.string(words[1:]) + "s"
-        elif words[0] in Type.primitive_types:
-            return " ".join(words).lower()
-        else:
-            return " ".join(words).title()
+    def extract(words: list) -> list:
+        result = []
+        for word in words:
+            word = word.lower()
+            if word in Type.type_synonyms or word in Type.types:
+                result.append(Type(word))
+        return result
 
-    def primitive(self) -> bool:
+    def isprimitive(self) -> bool:
         return all([block in Type.primitive_types for block in self._blocks])
 
     types = {
-        "user", "repo", "gist", "name", "login", "key", "id", "url", "email",
-        "none", "list", "str"
+        "user", "repo", "gist", "name", "login", "key", "id", "url", "email", "number",
+        "null", "list", "str"
     }
 
     primitive_types = {
-        "none", "list", "str"
+        "null", "list", "str"
     }
 
     type_synonyms = {
+        "users": ["list", "user"],
         "repos": ["list", "repo"],
         "gists": ["list", "gist"],
         "keys": ["list", "key"]
