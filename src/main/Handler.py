@@ -155,8 +155,8 @@ class Handler:
                         primitives = True
                         idle = True
                         for i, arg in enumerate(_args):
-                            if not arg.type.isprimitive(): primitives = False
-                            if arg.type == holes[0]:
+                            if not arg.inner_type.isprimitive(): primitives = False
+                            if arg.inner_type == holes[0]:
                                 del holes[0]
                                 del _args[i]
                                 relevant_args.append(arg)
@@ -183,7 +183,7 @@ class Handler:
                     while not idle and len(holes) > 0 and len(_args) > 0:
                         idle = True
                         for i, arg in enumerate(reversed(_args)):
-                            if arg.type == holes[0]:
+                            if arg.inner_type == holes[0]:
                                 del holes[0]
                                 relevant_args.append(arg)
                                 mass += (i + 1) * fine

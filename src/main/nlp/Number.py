@@ -109,8 +109,13 @@ if os.getenv("SRC_MAIN_NLP_INIT_NUMBER") == "false":
             return 0 if result == '' else int(result)
 
         @staticmethod
-        def isnumber(words) -> bool:
+        def isnumber(words: str) -> bool:
+            if isinstance(words, int): words = [words]
+            elif isinstance(words, str): words = words.split()
+            else: return False
             for word in words:
+                if isinstance(word, int): word = str(word)
+                if not isinstance(word, str): return False
                 word.lower()
                 if len(word) > 1 and word[-1] == 's': word = word[:-1]
                 elif len(word) > 2 and word[-2:] == 'st' and word[:-2].isnumeric(): word = word[:-2]
