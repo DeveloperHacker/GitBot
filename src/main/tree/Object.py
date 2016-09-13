@@ -1,6 +1,7 @@
 from src.main.nlp.Number import Number
 from src.main.tree.Function import Function
-from src.main.tree.Type import Type
+from src.main.tree.Types import Type
+from src.main.tree import Types
 
 
 class Object:
@@ -19,38 +20,38 @@ class Object:
     def __str__(self) -> str:
         if self._type[0] == "list":
             self._object = list(self._object)
-            result = [str(Object(Type(*self._type[1:]), elem)) for elem in self._object]
+            result = [str(Object(Type.valueOf(self._type[1:]), elem)) for elem in self._object]
             if len(self._object) == 0:
                 return "{} not found".format(str(self._type))
             else:
                 return '\n'.join(result)
-        elif self._type == Type("user"):
-            login = str(Object(Type("login"), self._object.login))
-            name = str(Object(Type("name"), self._object.name))
-            email = str(Object(Type("email"), self._object.email))
+        elif self._type == Types.User():
+            login = str(Object(Types.Login(), self._object.login))
+            name = str(Object(Types.Name(), self._object.name))
+            email = str(Object(Types.Email(), self._object.email))
             return "{}({}) <{}>".format(login, name, email)
-        elif self._type == Type("repo"):
-            login = str(Object(Type("login"), self._object.owner.login))
-            name = str(Object(Type("name"), self._object.name))
-            _id = str(Object(Type("id"), self._object.id))
+        elif self._type == Types.Repo():
+            login = str(Object(Types.Login(), self._object.owner.login))
+            name = str(Object(Types.Name(), self._object.name))
+            _id = str(Object(Types.Id(), self._object.id))
             return "{}'s repo {}({})".format(login, name, _id)
-        elif self._type == Type("gist"):
-            login = str(Object(Type("login"), self._object.owner.login))
-            _id = str(Object(Type("id"), self._object.id))
+        elif self._type == Types.Gist():
+            login = str(Object(Types.Login(), self._object.owner.login))
+            _id = str(Object(Types.Id(), self._object.id))
             return "{}'s gist {}".format(login, _id)
-        elif self._type in [Type("url"), Type("id"), Type("email")]:
+        elif self._type in [Types.Url(), Types.Id(), Types.Email()]:
             _str = str(self._object) if self._object else "───║───"
             _type = str(self._type)
             return "{}:{}".format(_type, _str)
-        elif self._type == Type("key"):
+        elif self._type == Types.Key():
             key = str(self._object.key) if self._object else ""
             _id = str(self._object.id) if self._object else "───║───"
             _type = str(self._type)
             return "{}:{}({})".format(_type, _id, key)
-        elif self._type == Type("str"):
+        elif self._type == Types.String():
             _str = str(self._object) if self._object else "───║───"
             return "'{}'".format(_str)
-        elif self._type == Type("null"):
+        elif self._type == Types.Null():
             return ""
         else:
             _str = str(self._object) if self._object else "───║───"
@@ -74,11 +75,11 @@ class Object:
         elif Type.isemail(string):
             return Object("email", string)
         elif Number.isnumber(string.split()):
-            return Object(Type("number"), Number(string.split()))
+            return Object(Types.Integer(), Number(string.split()))
         elif string.isnumeric():
-            return Object(Type("id"), string)
+            return Object(Types.Id(), string)
         else:
-            return Object(Type("str"), string)
+            return Object(Types.String(), string)
 
     def simplify(self) -> 'Object':
         if self._type in Object._similar_types:
@@ -86,27 +87,28 @@ class Object:
             self._type = simple.result
             self._object = simple.run(self._object)
         elif self._type[0] == "list":
-            simple_type = Type("null")
+            simple_type = Types.Null()
             result = []
             self._object = list(self._object)
             for elem in self._object:
-                simple = Object(Type(*self._type[1:]), elem).simplify()
+                simple = Object(Type.valueOf(self._type[1:]), elem).simplify()
                 simple_type = simple._type
                 result.append(simple._object)
-            self._type = Type("list", *simple_type.blocks)
+            self._type = Types.List(simple_type)
             self._object = result
         return self
 
     _similar_types = {
-        Type("user"): Function(Type("login"), [Type("user")], lambda user: user.login),
-        Type("repo"): Function(Type("id"), [Type("repo")], lambda repo: repo.id),
-        Type("gist"): Function(Type("id"), [Type("gist")], lambda gist: gist.id),
-        Type("name"): Function(Type("str"), [Type("name")], lambda name: str(name)),
-        Type("login"): Function(Type("str"), [Type("login")], lambda login: str(login)),
-        Type("url"): Function(Type("str"), [Type("url")], lambda url: str(url)),
-        Type("email"): Function(Type("str"), [Type("email")], lambda email: str(email)),
-        Type("key"): Function(Type("str"), [Type("key")], lambda key: str(key)),
-        Type("id"): Function(Type("str"), [Type("id")], lambda _id: str(_id))
+        Types.User(): Function(Types.Login(), [Types.User()], lambda user: user.login),
+        Types.Repo(): Function(Types.Id(), [Types.Repo()], lambda repo: repo.id),
+        Types.Gist(): Function(Types.Id(), [Types.Gist()], lambda gist: gist.id),
+        Types.Name(): Function(Types.String(), [Types.Name()], lambda name: str(name)),
+        Types.Login(): Function(Types.String(), [Types.Login()], lambda login: str(login)),
+        Types.Url(): Function(Types.String(), [Types.Url()], lambda url: str(url)),
+        Types.Email(): Function(Types.String(), [Types.Email()], lambda email: str(email)),
+        Types.Key(): Function(Types.String(), [Types.Key()], lambda key: str(key)),
+        Types.Id(): Function(Types.String(), [Types.Id()], lambda _id: str(_id)),
+        Types.Integer(): Function(Types.String(), [Types.Integer()], lambda _integer: _integer[0])
     }
 
 
@@ -120,4 +122,4 @@ class LabeledObject(Object):
         self._label = label
 
 
-null = Object(Type("null"), None)
+null = Object(Types.Null(), None)

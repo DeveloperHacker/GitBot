@@ -51,3 +51,5 @@ class AutoChat:
         end = time.time()
         IO.writeln(time.strftime("\nruntime: %Mm %Ss", time.gmtime(3 * 3600 + end - start)))
         process.kill()
+
+AutoChat.run()

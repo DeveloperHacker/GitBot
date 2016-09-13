@@ -7,7 +7,8 @@ from src import IO
 from src.main import Simplifier
 from src.main import Tables
 from src.main.nlp import Corrector
-from src.main.tree.Type import Type
+from src.main.tree.Types import Type
+from src.main.tree import Types
 from src.main.Connector import Connector, NotAutorisedUserException
 
 
@@ -155,8 +156,8 @@ class Handler:
                         primitives = True
                         idle = True
                         for i, arg in enumerate(_args):
-                            if not arg.inner_type.isprimitive(): primitives = False
-                            if arg.inner_type == holes[0]:
+                            if not arg.type.isprimitive(): primitives = False
+                            if arg.type == holes[0]:
                                 del holes[0]
                                 del _args[i]
                                 relevant_args.append(arg)
@@ -183,7 +184,7 @@ class Handler:
                     while not idle and len(holes) > 0 and len(_args) > 0:
                         idle = True
                         for i, arg in enumerate(reversed(_args)):
-                            if arg.inner_type == holes[0]:
+                            if arg.type == holes[0]:
                                 del holes[0]
                                 relevant_args.append(arg)
                                 mass += (i + 1) * fine
@@ -214,7 +215,7 @@ class Handler:
             return [arg for np in node["NP"] for arg in self._build(np, args + _args)]
 
     def show(self, obj: Object):
-        if obj.type == Type("str"):
+        if obj.type == Types.String():
             word = Simplifier.simplify_word(str(obj.object))
             if word in self._functions: self._functions[word](obj)
         else:
@@ -222,7 +223,7 @@ class Handler:
             if not (string + ' ').isspace(): self._print(string)
 
     def store(self, obj: Object):
-        if obj.type == Type("str") and obj.object == "me":
+        if obj.type == Types.String() and obj.object == "me":
             try:
                 self._storeds["user"] = self._connector.user()
                 self._print("I remember it")
@@ -235,7 +236,7 @@ class Handler:
             self._print("I can not remember " + str(obj.type))
 
     def log(self, obj: Object):
-        if obj.type != Type("str"): return
+        if obj.type != Types.String(): return
         value = obj.object
         if value == "out":
             self.logout(obj)
