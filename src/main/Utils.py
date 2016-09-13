@@ -1,4 +1,15 @@
 
+def subclasses(_class) -> set:
+    _subclasses = set()
+    work = [_class]
+    while work:
+        parent = work.pop()
+        for child in parent.__subclasses__():
+            if child not in _subclasses:
+                _subclasses.add(child)
+                work.append(child)
+    return _subclasses
+
 
 def string(collection) -> str:
     if type(collection) == list:

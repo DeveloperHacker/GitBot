@@ -1,13 +1,14 @@
 from copy import deepcopy
 from github import GithubException
 
-from src.main.tree.Object import Object, LabeledObject
-from src.main.tree.Object import null
+from src.main.types.Object import Object, LabeledObject
+from src.main.types.Object import Null
 from src import IO
 from src.main import Simplifier
 from src.main import Tables
 from src.main.nlp import Corrector
-from src.main.tree.Type import Type
+from src.main.types.Types import Type
+from src.main.types import Types
 from src.main.Connector import Connector, NotAutorisedUserException
 
 
@@ -64,7 +65,7 @@ class Handler:
                     for vb in vp["VB"]:
                         vb = Simplifier.simplify_word(vb)
                         if vb not in self._functions: continue
-                        self._functions[vb](null)
+                        self._functions[vb](Null())
                 else:
                     for node in vp["NP"]:
                         args = self._build(node, [])
@@ -97,18 +98,18 @@ class Handler:
         try:
             data = foo["B"](*[arg.object for arg in args])
             if data is None:
-                self._print("{} not found".format(str(foo["T"])))
-                return null
+                self._print("{} not found".format(str(foo["T"]).title()))
+                return Null()
             else:
-                return Object(foo["T"], data)
+                return Object.create(foo["T"], data)
         except GithubException as ex:
             if ex.status == 404:
-                self._print("{} not found".format(str(foo["T"])))
+                self._print("{} not found".format(str(foo["T"]).title()))
             else:
                 raise ex
         except NotAutorisedUserException as _:
             self._print("I don't know who are you")
-        return null
+        return Null()
 
     def _build(self, node: dict, args: list) -> list:
         if "NN" in node:
@@ -169,8 +170,8 @@ class Handler:
 
                         IO.debug(primitives, "primitives = {}")
                         IO.debug(idle, "idle = {}")
-                        IO.debug(_args, "_args = {}")
                         IO.debug(holes, "holes = {}")
+                        IO.debug(_args, "_args = {}")
                         IO.debug("---------------------------")
 
                     mass += len(_args)
@@ -214,7 +215,7 @@ class Handler:
             return [arg for np in node["NP"] for arg in self._build(np, args + _args)]
 
     def show(self, obj: Object):
-        if obj.type == Type("str"):
+        if obj.type == Types.String():
             word = Simplifier.simplify_word(str(obj.object))
             if word in self._functions: self._functions[word](obj)
         else:
@@ -222,9 +223,9 @@ class Handler:
             if not (string + ' ').isspace(): self._print(string)
 
     def store(self, obj: Object):
-        if obj.type == Type("str") and obj.object == "me":
+        if obj.type == Types.String() and obj.object == "me":
             try:
-                self._storeds["user"] = self._connector.user()
+                self._storeds[Types.User()] = self._connector.user()
                 self._print("I remember it")
             except NotAutorisedUserException as _:
                 self._print("I don't know who are you")
@@ -235,7 +236,7 @@ class Handler:
             self._print("I can not remember " + str(obj.type))
 
     def log(self, obj: Object):
-        if obj.type != Type("str"): return
+        if obj.type != Types.String(): return
         value = obj.object
         if value == "out":
             self.logout(obj)

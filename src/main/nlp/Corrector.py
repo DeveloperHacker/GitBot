@@ -57,23 +57,11 @@ def _parse_pp(tree) -> (list, list):
         len_in = len(_in)
         if len_pps > 0 and len_in == 0:
             (_pp, _rpp) = _parse_pp(pp)
-            for rp in _rpp:
-                rp["DEPTH"] -= 1
-                if rp["DEPTH"] <= 0:
-                    del rp["DEPTH"]
-                    result.append(rp)
-                else:
-                    rpp.append(rp)
+            result.extend(_rpp)
             result.extend(_pp)
         elif len_pps == 0 and len_in > 0:
             (_np, _rpp) = _parse_np(pp)
-            for rp in _rpp:
-                rp["DEPTH"] -= 1
-                if rp["DEPTH"] <= 0:
-                    del rp["DEPTH"]
-                    result.append(rp)
-                else:
-                    rpp.append(rp)
+            result.extend(_rpp)
             result.append({"IN": _in[0], "NP": _np})
         else:
             _in = _in[0]
@@ -132,27 +120,15 @@ def _parse_np(tree) -> (list, list):
                     else:
                         _collocation.append(inner_node[0])
                 if len(_in) > 0:
-                    rpp.append({"IN": _in[0], "NP": [_parse_collocation(_collocation)], "DEPTH": 2})
+                    rpp.append({"IN": _in[0], "NP": [_parse_collocation(_collocation)]})
                 else:
                     nps.append(_parse_collocation(_collocation))
             nps = [{"NN": np["NN"], "JJ": (np["JJ"] + jjs)} for np in nps for jjs in combine(jjss)]
             (_np, _rpp) = _parse_np(node)
-            for rp in _rpp:
-                rp["DEPTH"] -= 1
-                if rp["DEPTH"] <= 0:
-                    del rp["DEPTH"]
-                    pps.append(rp)
-                else:
-                    rpp.append(rp)
-            (_pp, _rpp) = _parse_pp(node)
-            for rp in _rpp:
-                rp["DEPTH"] -= 1
-                if rp["DEPTH"] <= 0:
-                    del rp["DEPTH"]
-                    pps.append(rp)
-                else:
-                    rpp.append(rp)
             nps.extend(_np)
+            pps.extend(_rpp)
+            (_pp, _rpp) = _parse_pp(node)
+            pps.extend(_rpp)
             pps.extend(_pp)
             if len(pps) == 0:
                 result.extend(nps)
@@ -166,8 +142,6 @@ def _parse_np(tree) -> (list, list):
 def _parse_sentence(tree) -> dict:
     (_np, _rpp) = _parse_np(tree)
     if len(_rpp) > 0:
-        for rp in _rpp:
-            if rp["DEPTH"] == 1: del rp["DEPTH"]
         sentence = {"NP": [{"NP": _np, "PP": _rpp}], "VP": []}
     else:
         sentence = {"NP": _np, "VP": []}
@@ -175,13 +149,9 @@ def _parse_sentence(tree) -> dict:
         vps = {}
         pps = []
         (_np, _rpp) = _parse_np(vp)
-        for rp in _rpp:
-            if rp["DEPTH"] == 1: del rp["DEPTH"]
-            pps.append(rp)
+        pps.extend(_rpp)
         (_pp, _rpp) = _parse_pp(vp)
-        for rp in _rpp:
-            if rp["DEPTH"] == 1: del rp["DEPTH"]
-            pps.append(rp)
+        pps.extend(_rpp)
         pps.extend(_pp)
         if len(pps) > 0:
             vps["NP"] = [{"NP": _np, "PP": pps}]
@@ -194,7 +164,6 @@ def _parse_sentence(tree) -> dict:
 
 # ToDo:
 def _hard_convert(tree) -> dict:
-    pass
     return None
 
 
