@@ -1,5 +1,5 @@
 from src.main.nlp.Number import Number
-from src.main.tree import Types
+from src.main.types import Types
 from src.main import Simplifier
 
 synonyms = {

@@ -45,8 +45,8 @@ def readln(prompt: str) -> str:
         write(prompt)
         return sys.stdin.readline()[:-1]
     else:
-        data = inp_file.readline()
-        write(prompt + data)
+        data = inp_file.readline()[:-1]
+        writeln(prompt + data)
         return data
 
 
@@ -54,7 +54,7 @@ def hreadln(prompt: str) -> str:
     if inp_file is None:
         return getpass(prompt)
     else:
-        return inp_file.readline()
+        return inp_file.readline()[:-1]
 
 
 def debug(obj, form="{}"):

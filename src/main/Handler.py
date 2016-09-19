@@ -1,14 +1,14 @@
 from copy import deepcopy
 from github import GithubException
 
-from src.main.tree.Object import Object, LabeledObject
-from src.main.tree.Object import null
+from src.main.types.Object import Object, LabeledObject
+from src.main.types.Object import Null
 from src import IO
 from src.main import Simplifier
 from src.main import Tables
 from src.main.nlp import Corrector
-from src.main.tree.Types import Type
-from src.main.tree import Types
+from src.main.types.Types import Type
+from src.main.types import Types
 from src.main.Connector import Connector, NotAutorisedUserException
 
 
@@ -65,7 +65,7 @@ class Handler:
                     for vb in vp["VB"]:
                         vb = Simplifier.simplify_word(vb)
                         if vb not in self._functions: continue
-                        self._functions[vb](null)
+                        self._functions[vb](Null())
                 else:
                     for node in vp["NP"]:
                         args = self._build(node, [])
@@ -99,7 +99,7 @@ class Handler:
             data = foo["B"](*[arg.object for arg in args])
             if data is None:
                 self._print("{} not found".format(str(foo["T"])))
-                return null
+                return Null()
             else:
                 return Object(foo["T"], data)
         except GithubException as ex:
@@ -109,7 +109,7 @@ class Handler:
                 raise ex
         except NotAutorisedUserException as _:
             self._print("I don't know who are you")
-        return null
+        return Null()
 
     def _build(self, node: dict, args: list) -> list:
         if "NN" in node:

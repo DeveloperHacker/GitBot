@@ -1,7 +1,5 @@
 import os
 
-os.environ["SRC_MAIN_NLP_INIT_NUMBER"] = "false"
-
 home = os.getenv("HOME")
 stanford_dir = home + "/NLP"
 os.environ["STANFORD_DIR"] = stanford_dir

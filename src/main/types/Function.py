@@ -1,4 +1,4 @@
-from src.main.tree.Types import Type
+from src.main.types.Types import Type
 
 
 class Function:
