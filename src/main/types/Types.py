@@ -4,20 +4,11 @@ from abc import ABCMeta
 import github.Gist
 import github.Repository
 import github.NamedUser
+import github.AuthenticatedUser
 from sphinx.util.pycompat import NoneType
-from main.nlp.Number import Number
 
-
-def subclasses(_class) -> set:
-    _subclasses = set()
-    work = [_class]
-    while work:
-        parent = work.pop()
-        for child in parent.__subclasses__():
-            if child not in _subclasses:
-                _subclasses.add(child)
-                work.append(child)
-    return _subclasses
+from src.main.Utils import subclasses
+from src.main.nlp.Number import Number
 
 
 class Type(metaclass=ABCMeta):
@@ -28,10 +19,6 @@ class Type(metaclass=ABCMeta):
     @property
     def name(self) -> str:
         return self._name
-
-    @property
-    def generic(self) -> 'Type':
-        return self._generic
 
     def __init__(self, *args):
         if len(args) == 0: raise Exception("Illegal type name")
@@ -93,10 +80,9 @@ class Type(metaclass=ABCMeta):
         for subclass in subclasses(Type):
             if subclass.isinstance(element) and (result is None or result.mass > subclass.mass):
                 result = subclass
-        if result is None: raise Exception("{} object's type not found".format(element.__class__.__name__))
+        if result is None: raise Exception("{} object's type not found".format(element.__name__))
         result = result()
-        result._generic = result.get_generic(element)
-        result._blocks = result._blocks + result._generic
+        result._blocks = result._blocks + tuple(result.get_generic(element))
         return result
 
     _mass = 0
@@ -123,21 +109,27 @@ class Type(metaclass=ABCMeta):
                 return result
         return Null()
 
+    @staticmethod
+    def get_generic(element) -> 'Type': return ()
+
 
 class List(Type):
+    @property
+    def generic(self):
+        return self._generic
+
     def __init__(self, generic=None):
-        if generic is not None:
-            super().__init__("list", *list(generic))
-            self._generic = generic
-        else:
-            super().__init__("list")
+        if generic is None: generic = []
+        self._generic = generic
+        super().__init__("list", *list(generic))
         List._primitive = self._generic.isprimitive()
+        List._inner = list
 
     def __str__(self) -> str:
         return "{}s".format(str(self._generic))
 
     @staticmethod
-    def create(element) -> 'List':
+    def get_generic(element) -> 'Type':
         generic = None
         for elem in list(element):
             _type = Type.type(elem)
@@ -146,8 +138,11 @@ class List(Type):
             elif generic != _type:
                 generic = None
                 break
-        if generic is None: generic = Any
-        return List(generic)
+        return Any() if generic is None else generic
+
+    @staticmethod
+    def create(element) -> 'List':
+        return List(List.get_generic(element))
 
 
 class String(Type):
@@ -159,7 +154,6 @@ class String(Type):
     def __init__(self):
         if String._instance is None:
             String._instance = self
-            String._instance.__init__()
             super().__init__("string")
             String._inner = str
             String._mass = 3
@@ -174,13 +168,9 @@ class Any(Type):
     def __init__(self):
         if Any._instance is None:
             Any._instance = self
-            Any._instance.__init__()
             super().__init__("any")
+            Any._inner = object
             Any._mass = float("inf")
-
-    @classmethod
-    def isinstance(cls, element) -> bool:
-        return True
 
 
 class Null(Type):
@@ -192,7 +182,6 @@ class Null(Type):
     def __init__(self):
         if Null._instance is None:
             Null._instance = self
-            Null._instance.__init__()
             super().__init__("null")
 
 
@@ -205,7 +194,6 @@ class Integer(Type):
     def __init__(self):
         if Integer._instance is None:
             Integer._instance = self
-            Integer._instance.__init__()
             super().__init__("integer")
             Integer._inner = Number
 
@@ -219,7 +207,6 @@ class Email(Type):
     def __init__(self):
         if Email._instance is None:
             Email._instance = self
-            Email._instance.__init__()
             super().__init__("email")
             Email._inner = str
             Email._primitive = False
@@ -238,7 +225,6 @@ class Url(Type):
     def __init__(self):
         if Url._instance is None:
             Url._instance = self
-            Url._instance.__init__()
             super().__init__("url")
             Url._inner = str
             Url._primitive = False
@@ -257,9 +243,8 @@ class Id(Type):
     def __init__(self):
         if Id._instance is None:
             Id._instance = self
-            Id._instance.__init__()
             super().__init__("id")
-            Id._inner = str
+            Id._inner = (str, int)
             Id._primitive = False
 
 
@@ -272,7 +257,6 @@ class Key(Type):
     def __init__(self):
         if Key._instance is None:
             Key._instance = self
-            Key._instance.__init__()
             super().__init__("key")
             Key._inner = str
             Key._primitive = False
@@ -287,7 +271,6 @@ class Login(Type):
     def __init__(self):
         if Login._instance is None:
             Login._instance = self
-            Login._instance.__init__()
             super().__init__("login")
             Login._inner = str
             Login._primitive = False
@@ -302,7 +285,6 @@ class Name(Type):
     def __init__(self):
         if Name._instance is None:
             Name._instance = self
-            Name._instance.__init__()
             super().__init__("name")
             Name._inner = str
             Name._primitive = False
@@ -317,7 +299,6 @@ class Gist(Type):
     def __init__(self):
         if Gist._instance is None:
             Gist._instance = self
-            Gist._instance.__init__()
             super().__init__("gist")
             Gist._inner = github.Gist.Gist
             Gist._primitive = False
@@ -332,7 +313,6 @@ class Repo(Type):
     def __init__(self):
         if Repo._instance is None:
             Repo._instance = self
-            Repo._instance.__init__()
             super().__init__("repo")
             Repo._inner = github.Repository.Repository
             Repo._primitive = False
@@ -347,7 +327,6 @@ class User(Type):
     def __init__(self):
         if User._instance is None:
             User._instance = self
-            User._instance.__init__()
             super().__init__("user")
-            User._inner = github.NamedUser.NamedUser
+            User._inner = (github.NamedUser.NamedUser, github.AuthenticatedUser.AuthenticatedUser)
             User._primitive = False

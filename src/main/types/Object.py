@@ -1,6 +1,6 @@
 from abc import abstractmethod, ABCMeta
-from copy import deepcopy
 
+from src.main.Utils import subclasses
 from src.main.nlp.Number import Number
 from src.main.types.Function import Function
 from src.main.types.Types import Type
@@ -19,6 +19,19 @@ class Object(metaclass=ABCMeta):
     @property
     def object(self):
         return self._object
+
+    @staticmethod
+    def create(_type: Type, _object) -> 'Object':
+        instance = None
+        objects = {subclass.__name__.lower(): subclass for subclass in subclasses(Object)}
+        type_name = _type[0].lower()
+        for name, subclass in objects.items():
+            if name == LabeledObject.__name__.lower(): continue
+            if name == type_name:
+                instance = subclass(_object)
+                break
+        if instance is None: raise Exception("Constructor with type {} not found".format(str(_type)))
+        return instance
 
     def __init__(self, _type: Type, _object):
         self._type = _type
@@ -40,14 +53,7 @@ class Object(metaclass=ABCMeta):
         return hash(str(self))
 
     def __deepcopy__(self, memo=None):
-        if memo is None: memo = {}
-        dpcpy = self.__class__(self._type, self._object)
-        memo[id(self)] = dpcpy
-        for attr in dir(self):
-            if not attr.startswith('_'):
-                value = getattr(self, attr)
-                setattr(dpcpy, attr, deepcopy(value, memo))
-        return dpcpy
+        return Object(self._type, self._object)
 
     @staticmethod
     def valueOf(string: str) -> 'Object':
@@ -72,7 +78,7 @@ class Object(metaclass=ABCMeta):
             result = []
             self._object = list(self._object)
             for elem in self._object:
-                simple = Object(Type.valueOf(self._type[1:]), elem).simplify()
+                simple = Object.create(Type.valueOf(self._type[1:]), elem).simplify()
                 simple_type = simple._type
                 result.append(simple._object)
             self._type = Types.List(simple_type)
@@ -94,28 +100,24 @@ class Object(metaclass=ABCMeta):
 
 
 class LabeledObject(Object):
-    def __str__(self) -> str:
-        pass
-
     @property
     def label(self) -> str:
         return self._label
 
+    def __new__(cls, label: str, _object: Object):
+        instance = object.__new__(LabeledObject)
+        return instance
+
     def __init__(self, label: str, _object: Object):
         super().__init__(_object._type, _object._object)
-        self.__str__ = _object.__str__
+        self.str = _object.__str__
         self._label = label
 
     def __deepcopy__(self, memo=None):
-        if memo is None: memo = {}
-        return self.__class__(self._label, self)
+        return LabeledObject(self._label, self)
 
-
-def __new__(cls, _type, _object, arg):
-    if not _type.isinstance(arg): return Null()
-    instance = object.__new__(cls)
-    _object.__init__(instance, arg)
-    return instance
+    def __str__(self) -> str:
+        return self.str()
 
 
 class List(Object):
@@ -123,19 +125,20 @@ class List(Object):
     def object(self) -> list:
         return self._object
 
-    def __new__(cls, _object) -> Object:
-        return __new__(cls, Types.List, List, _object)
+    @property
+    def type(self) -> Types.List:
+        return self._type
 
     def __init__(self, _object):
+        if not Types.List.isinstance(_object): raise Exception("Object is not list")
         super().__init__(Types.List.create(_object), _object)
 
     def __str__(self):
         self._object = list(self._object)
-        result = [elem for elem in self._object]
         if len(self._object) == 0:
             return "{} not found".format(str(self._type))
         else:
-            return '\n'.join(result)
+            return '\n'.join([str(Object.create(self.type.generic, element)) for element in self._object])
 
 
 class String(Object):
@@ -143,10 +146,12 @@ class String(Object):
     def object(self) -> str:
         return self._object
 
-    def __new__(cls, _object) -> Object:
-        return __new__(cls, Types.String, String, _object)
+    @property
+    def type(self) -> Types.String:
+        return self._type
 
     def __init__(self, _object):
+        if not Types.String.isinstance(_object): raise Exception("Object is not string")
         super().__init__(Types.String(), _object)
 
     def __str__(self) -> str:
@@ -159,11 +164,13 @@ class Any(Object):
     def object(self):
         return self._object
 
-    def __new__(cls, _object) -> Object:
-        return __new__(cls, Types.String, String, _object)
+    @property
+    def type(self) -> Types.Any:
+        return self._type
 
     def __init__(self, _object):
-        super().__init__(Types.String(), _object)
+        if not Types.Any.isinstance(_object): raise Exception("Object is not object")
+        super().__init__(Types.Any(), _object)
 
     def __str__(self) -> str:
         _str = str(self._object) if self._object else "───║───"
@@ -175,8 +182,20 @@ class Null(Object):
     def object(self) -> None:
         return self._object
 
-    def __init__(self):
-        super().__init__(Types.Null(), None)
+    @property
+    def type(self) -> Types.Null:
+        return self._type
+
+    _instance = None
+
+    def __new__(cls) -> 'Null':
+        return object.__new__(Null) if Null._instance is None else Null._instance
+
+    def __init__(self, _object=None):
+        if not Types.Null.isinstance(_object): raise Exception("Object is not null")
+        if Null._instance is None:
+            Null._instance = self
+            super().__init__(Types.Null(), _object)
 
     def __str__(self) -> str:
         return ""
@@ -187,10 +206,12 @@ class Integer(Object):
     def object(self) -> Number:
         return self._object
 
-    def __new__(cls, _object) -> Object:
-        return __new__(cls, Types.Integer, Integer, _object)
+    @property
+    def type(self) -> Types.Integer:
+        return self._type
 
     def __init__(self, _object):
+        if not Types.Integer.isinstance(_object): raise Exception("Object is not integer")
         super().__init__(Types.Integer(), _object)
 
     def __str__(self) -> str:
@@ -203,10 +224,12 @@ class Email(Object):
     def object(self) -> str:
         return self._object
 
-    def __new__(cls, _object) -> Object:
-        return __new__(cls, Types.Email, Email, _object)
+    @property
+    def type(self) -> Types.Email:
+        return self._type
 
     def __init__(self, _object):
+        if not Types.Email.isinstance(_object): raise Exception("Object is not email")
         super().__init__(Types.Email(), _object)
 
     def __str__(self) -> str:
@@ -220,10 +243,12 @@ class Url(Object):
     def object(self) -> str:
         return self._object
 
-    def __new__(cls, _object) -> Object:
-        return __new__(cls, Types.Url, Url, _object)
+    @property
+    def type(self) -> Types.Url:
+        return self._type
 
     def __init__(self, _object):
+        if not Types.Url.isinstance(_object): raise Exception("Object is not url")
         super().__init__(Types.Url(), _object)
 
     def __str__(self) -> str:
@@ -237,10 +262,12 @@ class Id(Object):
     def object(self) -> str:
         return self._object
 
-    def __new__(cls, _object) -> Object:
-        return __new__(cls, Types.Id, Id, _object)
+    @property
+    def type(self) -> Types.Id:
+        return self._type
 
     def __init__(self, _object):
+        if not Types.Id.isinstance(_object): raise Exception("Object is not id")
         super().__init__(Types.Id(), _object)
 
     def __str__(self) -> str:
@@ -254,10 +281,12 @@ class Key(Object):
     def object(self) -> str:
         return self._object
 
-    def __new__(cls, _object) -> Object:
-        return __new__(cls, Types.Key, Key, _object)
+    @property
+    def type(self) -> Types.Key:
+        return self._type
 
     def __init__(self, _object):
+        if not Types.Key.isinstance(_object): raise Exception("Object is not key")
         super().__init__(Types.Key(), _object)
 
     def __str__(self):
@@ -272,10 +301,12 @@ class Login(Object):
     def object(self) -> str:
         return self._object
 
-    def __new__(cls, _object) -> Object:
-        return __new__(cls, Types.Login, Login, _object)
+    @property
+    def type(self) -> Types.Login:
+        return self._type
 
     def __init__(self, _object):
+        if not Types.Login.isinstance(_object): raise Exception("Object is not login")
         super().__init__(Types.Login(), _object)
 
     def __str__(self) -> str:
@@ -288,10 +319,12 @@ class Name(Object):
     def object(self) -> str:
         return self._object
 
-    def __new__(cls, _object) -> Object:
-        return __new__(cls, Types.Name, Name, _object)
+    @property
+    def type(self) -> Types.Name:
+        return self._type
 
     def __init__(self, _object):
+        if not Types.Name.isinstance(_object): raise Exception("Object is not name")
         super().__init__(Types.Name(), _object)
 
     def __str__(self) -> str:
@@ -304,10 +337,12 @@ class Gist(Object):
     def object(self) -> github.Gist.Gist:
         return self._object
 
-    def __new__(cls, _object) -> Object:
-        return __new__(cls, Types.Gist, Gist, _object)
+    @property
+    def type(self) -> Types.Gist:
+        return self._type
 
     def __init__(self, _object):
+        if not Types.Gist.isinstance(_object): raise Exception("Object is not gist")
         super().__init__(Types.Gist(), _object)
 
     def __str__(self) -> str:
@@ -321,15 +356,17 @@ class Repo(Object):
     def object(self) -> github.Repository.Repository:
         return self._object
 
-    def __new__(cls, _object) -> Object:
-        return __new__(cls, Types.Repo, Repo, _object)
+    @property
+    def type(self) -> Types.Repo:
+        return self._type
 
     def __init__(self, _object):
+        if not Types.Repo.isinstance(_object): raise Exception("Object is not repo")
         super().__init__(Types.Repo(), _object)
 
     def __str__(self) -> str:
         login = str(Login(self._object.owner.login))
-        name = str(Name(self._object.name))
+        name = str(Name(self.object.name)) if self.object.name is not None else ""
         _id = str(Id(self._object.id))
         return "{}'s repo {}({})".format(login, name, _id)
 
@@ -339,14 +376,16 @@ class User(Object):
     def object(self) -> github.NamedUser.NamedUser:
         return self._object
 
-    def __new__(cls, _object) -> 'User':
-        return __new__(cls, Types.User, User, _object)
+    @property
+    def type(self) -> Types.User:
+        return self._type
 
     def __init__(self, _object):
+        if not Types.User.isinstance(_object): raise Exception("Object is not user")
         super().__init__(Types.User(), _object)
 
     def __str__(self) -> str:
         login = str(Login(self.object.login))
-        name = str(Name(self.object.name))
-        email = str(Email(self.object.email))
-        return "{}({}) <{}>".format(login, name, email)
+        name = "({})".format(str(Name(self.object.name))) if self.object.name is not None else ""
+        email = "<{}>".format(str(Email(self.object.email))) if self.object.email is not None else ""
+        return "{}{} {}".format(login, name, email)

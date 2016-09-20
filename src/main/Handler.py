@@ -98,13 +98,13 @@ class Handler:
         try:
             data = foo["B"](*[arg.object for arg in args])
             if data is None:
-                self._print("{} not found".format(str(foo["T"])))
+                self._print("{} not found".format(str(foo["T"]).title()))
                 return Null()
             else:
-                return Object(foo["T"], data)
+                return Object.create(foo["T"], data)
         except GithubException as ex:
             if ex.status == 404:
-                self._print("{} not found".format(str(foo["T"])))
+                self._print("{} not found".format(str(foo["T"]).title()))
             else:
                 raise ex
         except NotAutorisedUserException as _:
@@ -170,8 +170,8 @@ class Handler:
 
                         IO.debug(primitives, "primitives = {}")
                         IO.debug(idle, "idle = {}")
-                        IO.debug(_args, "_args = {}")
                         IO.debug(holes, "holes = {}")
+                        IO.debug(_args, "_args = {}")
                         IO.debug("---------------------------")
 
                     mass += len(_args)
@@ -225,7 +225,7 @@ class Handler:
     def store(self, obj: Object):
         if obj.type == Types.String() and obj.object == "me":
             try:
-                self._storeds["user"] = self._connector.user()
+                self._storeds[Types.User()] = self._connector.user()
                 self._print("I remember it")
             except NotAutorisedUserException as _:
                 self._print("I don't know who are you")
