@@ -2,8 +2,10 @@
 
 ```
            PythonBot  ::  hello
-                User  ::  show a id at developerhacker's repo with name GitBot
-           PythonBot  ::  id:64680022
+                User  ::  hello
+           PythonBot  ::  =)
+                User  ::  show a id at first repo of developerhacker's repos
+           PythonBot  ::  id:43022893
                 User  ::  developerhacker's repos
            PythonBot  ::  DeveloperHacker's repo 2DEngine(id:43022893)
            PythonBot  ::  DeveloperHacker's repo ControllerOfControllers(id:55097979)
@@ -60,8 +62,8 @@
            PythonBot  ::  DeveloperHacker's gist id:5f4925b04a9524790036
            PythonBot  ::  DeveloperHacker's gist id:c54e3442202274b0ca9a
            PythonBot  ::  DeveloperHacker's gist id:18e08fdfc2269f1ad5c8
-           PythonBot  ::  url:https://avatars.githubusercontent.com/u/9917750?v=3
-           PythonBot  ::  url:https://api.github.com/users/Aezakme/orgs
+           PythonBot  ::  url:https://avatars.githubusercontent.com/u/8640896?v=3
+           PythonBot  ::  url:https://api.github.com/users/Saloed/orgs
            PythonBot  ::  id:9917750
      DeveloperHacker  ::  store me
            PythonBot  ::  I remember it
@@ -75,7 +77,7 @@
            PythonBot  ::  enter your login for github
                login  ::  adssadasd
            PythonBot  ::  enter password
-            password  ::  adssadasd
+            password  ::  
            PythonBot  ::  incorrect login or password
                 User  ::  a developerhacker's repo 64680022
            PythonBot  ::  DeveloperHacker's repo GitBot(id:64680022)

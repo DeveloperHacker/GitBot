@@ -1,6 +1,7 @@
 from copy import deepcopy
 from github import GithubException
 
+from src.main.types.Function import WFunction, NullFunction, Function
 from src.main.types.Object import Object, LabeledObject
 from src.main.types.Object import Null
 from src import IO
@@ -10,6 +11,7 @@ from src.main.nlp import Corrector
 from src.main.types.Types import Type
 from src.main.types import Types
 from src.main.Connector import Connector, NotAutorisedUserException
+from src.main.Utils import difference
 
 
 class Handler:
@@ -52,27 +54,30 @@ class Handler:
     def _custom_read(self, prompt: str):
         return IO.readln(self.format_nick(prompt, self._max_nick_len) + "  ::  ")
 
+    def _init_build(self, parse):
+        if parse is None: return
+        for vp in parse["VP"]:
+            if len(vp["NP"]) == 0:
+                for vb in vp["VB"]:
+                    vb = Simplifier.simplify_word(vb)
+                    if vb not in self._functions: continue
+                    self._functions[vb](Null())
+            else:
+                for node in vp["NP"]:
+                    args = self._build(node, [])
+                    for vb in vp["VB"]:
+                        vb = Simplifier.simplify_word(vb)
+                        if vb not in self._functions: continue
+                        for arg in args: self._functions[vb](arg)
+
     def _handle(self):
         data = self._read()
         parse = Corrector.parse(data)
 
         IO.debug(Corrector.tree(parse))
 
-        if parse is None: return
         try:
-            for vp in parse["VP"]:
-                if len(vp["NP"]) == 0:
-                    for vb in vp["VB"]:
-                        vb = Simplifier.simplify_word(vb)
-                        if vb not in self._functions: continue
-                        self._functions[vb](Null())
-                else:
-                    for node in vp["NP"]:
-                        args = self._build(node, [])
-                        for vb in vp["VB"]:
-                            vb = Simplifier.simplify_word(vb)
-                            if vb not in self._functions: continue
-                            for arg in args: self._functions[vb](arg)
+            self._init_build(parse)
         except GithubException as ex:
             if ex.status == 403:
                 self._print(ex.data["message"])
@@ -83,28 +88,17 @@ class Handler:
     def distance(list1: list, list2: list) -> float:
         return abs(len(list1) - len(list2))
 
-    @staticmethod
-    def difference(list1: list, list2: list) -> list:
-        tmp = deepcopy(list2)
-        result = []
-        for el in list1:
-            if el in tmp:
-                tmp.remove(el)
-            else:
-                result.append(el)
-        return result
-
-    def _execute(self, foo: dict, args: list):
+    def _execute(self, foo: Function, args: list):
         try:
-            data = foo["B"](*[arg.object for arg in args])
+            data = foo.run(*[arg.object for arg in args])
             if data is None:
-                self._print("{} not found".format(str(foo["T"]).title()))
+                self._print("{} not found".format(str(foo.result).title()))
                 return Null()
             else:
-                return Object.create(foo["T"], data)
+                return Object.create(foo.result, data)
         except GithubException as ex:
             if ex.status == 404:
-                self._print("{} not found".format(str(foo["T"]).title()))
+                self._print("{} not found".format(str(foo.result).title()))
             else:
                 raise ex
         except NotAutorisedUserException as _:
@@ -132,7 +126,7 @@ class Handler:
                     if len(conjunction) == len(set_shell_adjectives):
                         relevant_shells.append(shell)
             constructed_object = None
-            relevant_function = {"M": float("Inf")}
+            relevant_function = NullFunction()
             if len(relevant_shells) != 0:
                 min_shell = relevant_shells[0]
                 min_dist = self.distance(adjectives, min_shell["JJ"])
@@ -143,11 +137,11 @@ class Handler:
                         min_dist = distance
                         min_shell = shell
                 shell = min_shell
-                adjectives = self.difference(adjectives, shell["JJ"])
+                adjectives = difference(adjectives, shell["JJ"])
                 for function in shell["F"]:
-                    holes = deepcopy(function["A"])
+                    holes = list(deepcopy(function.args))
                     relevant_args = []
-                    _args = deepcopy(args)
+                    _args = list(deepcopy(args))
                     primitives = False
                     idle = False
                     mass = 0
@@ -178,9 +172,9 @@ class Handler:
                     _args = [Object.valueOf(jj) for jj in adjectives]
                     idle = False
                     fine = 1
-                    if noun in self._type_builders and len(holes) == 1 and len(holes) == len(function["A"]):
-                        fun = self._type_builders[noun]
-                        if holes == fun["A"]: function = fun
+                    if noun in self._type_builders and len(holes) == 1 and len(holes) == len(function.args):
+                        temp_function = self._type_builders[noun]
+                        if holes == list(temp_function.args): function = temp_function
                     while not idle and len(holes) > 0 and len(_args) > 0:
                         idle = True
                         for i, arg in enumerate(reversed(_args)):
@@ -191,7 +185,7 @@ class Handler:
                                 idle = False
                                 break
                         if idle: fine += 4
-                    mass -= 2 * len(function["A"])
+                    mass -= 2 * len(function.args)
                     if len(holes) > 0: mass = float("Inf")
 
                     IO.debug(relevant_args, "args = {}")
@@ -199,14 +193,13 @@ class Handler:
                     IO.debug(mass, "mass = {}")
                     IO.debug("+++++++++++++++++++++++++++")
 
-                    if relevant_function["M"] > mass:
-                        relevant_function = {"M": mass, "A": relevant_args, "F": function}
+                    if relevant_function.mass > mass: relevant_function = WFunction(mass, relevant_args, function)
 
             IO.debug(relevant_function, "relevant_function = {}")
             IO.debug("===========================")
 
-            if relevant_function["M"] < float("Inf"):
-                constructed_object = self._execute(relevant_function["F"], relevant_function["A"])
+            if relevant_function.mass < float("Inf"):
+                constructed_object = self._execute(relevant_function, relevant_function.relevant_args)
             if constructed_object is None:
                 constructed_object = Object.valueOf(string)
             return [constructed_object]

@@ -86,16 +86,16 @@ class Object(metaclass=ABCMeta):
         return self
 
     _similar_types = {
-        Types.User(): Function(Types.Login(), [Types.User()], lambda user: user.login),
-        Types.Repo(): Function(Types.Id(), [Types.Repo()], lambda repo: repo.id),
-        Types.Gist(): Function(Types.Id(), [Types.Gist()], lambda gist: gist.id),
-        Types.Name(): Function(Types.String(), [Types.Name()], lambda name: str(name)),
-        Types.Login(): Function(Types.String(), [Types.Login()], lambda login: str(login)),
-        Types.Url(): Function(Types.String(), [Types.Url()], lambda url: str(url)),
-        Types.Email(): Function(Types.String(), [Types.Email()], lambda email: str(email)),
-        Types.Key(): Function(Types.String(), [Types.Key()], lambda key: str(key)),
-        Types.Id(): Function(Types.String(), [Types.Id()], lambda _id: str(_id)),
-        Types.Integer(): Function(Types.String(), [Types.Integer()], lambda _integer: _integer[0])
+        Types.User(): Function([Types.User()], Types.Login(), lambda user: user.login),
+        Types.Repo(): Function([Types.Repo()], Types.Id(), lambda repo: repo.id),
+        Types.Gist(): Function([Types.Gist()], Types.Id(), lambda gist: gist.id),
+        Types.Name(): Function([Types.Name()], Types.String(), lambda name: str(name)),
+        Types.Login(): Function([Types.Login()], Types.String(), lambda login: str(login)),
+        Types.Url(): Function([Types.Url()], Types.String(), lambda url: str(url)),
+        Types.Email(): Function([Types.Email()], Types.String(), lambda email: str(email)),
+        Types.Key(): Function([Types.Key()], Types.String(), lambda key: str(key)),
+        Types.Id(): Function([Types.Id()], Types.String(), lambda _id: str(_id)),
+        Types.Integer(): Function([Types.Integer()], Types.String(), lambda _integer: _integer[-1])
     }
 
 
@@ -110,14 +110,14 @@ class LabeledObject(Object):
 
     def __init__(self, label: str, _object: Object):
         super().__init__(_object._type, _object._object)
-        self.str = _object.__str__
+        self._str = _object.__str__
         self._label = label
 
     def __deepcopy__(self, memo=None):
         return LabeledObject(self._label, self)
 
     def __str__(self) -> str:
-        return self.str()
+        return self._str()
 
 
 class List(Object):
