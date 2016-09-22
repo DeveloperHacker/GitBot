@@ -368,7 +368,7 @@ class Repo(Object):
         login = str(Login(self._object.owner.login))
         name = str(Name(self.object.name)) if self.object.name is not None else ""
         _id = str(Id(self._object.id))
-        return "{}'s repo {}({})".format(login, name, _id)
+        return "{}'s repository {}({})".format(login, name, _id)
 
 
 class User(Object):

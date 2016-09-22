@@ -105,6 +105,89 @@ class Handler:
             self._print("I don't know who are you")
         return Null()
 
+    def _get_relevant_shells(self, noun: str, adjectives: list) -> list:
+        relevant_shells = []
+        if noun in self._builders:
+            shells = self._builders[noun]
+            for shell in shells:
+                set_shell_adjectives = set(shell["JJ"])
+                conjunction = set_shell_adjectives & set(adjectives)
+                if len(conjunction) == len(set_shell_adjectives):
+                    relevant_shells.append(shell)
+        return relevant_shells
+
+    def _get_relevant_function(self, noun: str, adjectives: list, args: list) -> WFunction:
+        relevant_function = NullFunction()
+        relevant_shells = self._get_relevant_shells(noun, adjectives)
+        if len(relevant_shells) != 0:
+            min_shell = relevant_shells[0]
+            min_dist = self.distance(adjectives, min_shell["JJ"])
+            for i, shell in enumerate(relevant_shells):
+                if i == 0: continue
+                distance = self.distance(adjectives, shell["JJ"])
+                if distance < min_dist:
+                    min_dist = distance
+                    min_shell = shell
+            shell = min_shell
+            adjectives = difference(adjectives, shell["JJ"])
+            for function in shell["F"]:
+                holes = list(deepcopy(function.args))
+                relevant_args = []
+                _args = list(deepcopy(args))
+                primitives = False
+                idle = False
+                mass = 0
+                fine = 1
+                while not (idle and primitives) and len(holes) > 0 and len(_args) > 0:
+                    primitives = True
+                    idle = True
+                    for i, arg in enumerate(_args):
+                        if not arg.type.isprimitive(): primitives = False
+                        if arg.type == holes[0]:
+                            del holes[0]
+                            del _args[i]
+                            relevant_args.append(arg)
+                            mass += (i + 1) * fine
+                            idle = False
+                            break
+                    if idle:
+                        for arg in _args: arg.simplify()
+                        fine += 4
+
+                    IO.debug(primitives, "primitives = {}")
+                    IO.debug(idle, "idle = {}")
+                    IO.debug(holes, "holes = {}")
+                    IO.debug(_args, "_args = {}")
+                    IO.debug("---------------------------")
+
+                mass += len(_args)
+                _args = [Object.valueOf(jj) for jj in adjectives]
+                idle = False
+                fine = 1
+                if noun in self._type_builders and len(holes) == 1 and len(holes) == len(function.args):
+                    temp_function = self._type_builders[noun]
+                    if holes == list(temp_function.args): function = temp_function
+                while not idle and len(holes) > 0 and len(_args) > 0:
+                    idle = True
+                    for i, arg in enumerate(reversed(_args)):
+                        if arg.type == holes[0]:
+                            del holes[0]
+                            relevant_args.append(arg)
+                            mass += (i + 1) * fine
+                            idle = False
+                            break
+                    if idle: fine += 4
+                mass -= 2 * len(function.args)
+                if len(holes) > 0: mass = float("Inf")
+
+                IO.debug(relevant_args, "args = {}")
+                IO.debug(function, "function = {}")
+                IO.debug(mass, "mass = {}")
+                IO.debug("+++++++++++++++++++++++++++")
+
+                if relevant_function.mass > mass: relevant_function = WFunction(mass, relevant_args, function)
+        return relevant_function
+
     def _build(self, node: dict, args: list) -> list:
         if "NN" in node:
             string = node["NN"]
@@ -117,94 +200,19 @@ class Handler:
                     adjectives.remove(type_name)
                     adjectives.append(string)
                     noun = type_name
-            relevant_shells = []
-            if noun in self._builders:
-                shells = self._builders[noun]
-                for shell in shells:
-                    set_shell_adjectives = set(shell["JJ"])
-                    conjunction = set_shell_adjectives & set(adjectives)
-                    if len(conjunction) == len(set_shell_adjectives):
-                        relevant_shells.append(shell)
-            constructed_object = None
-            relevant_function = NullFunction()
-            if len(relevant_shells) != 0:
-                min_shell = relevant_shells[0]
-                min_dist = self.distance(adjectives, min_shell["JJ"])
-                for i, shell in enumerate(relevant_shells):
-                    if i == 0: continue
-                    distance = self.distance(adjectives, shell["JJ"])
-                    if distance < min_dist:
-                        min_dist = distance
-                        min_shell = shell
-                shell = min_shell
-                adjectives = difference(adjectives, shell["JJ"])
-                for function in shell["F"]:
-                    holes = list(deepcopy(function.args))
-                    relevant_args = []
-                    _args = list(deepcopy(args))
-                    primitives = False
-                    idle = False
-                    mass = 0
-                    fine = 1
-                    while not (idle and primitives) and len(holes) > 0 and len(_args) > 0:
-                        primitives = True
-                        idle = True
-                        for i, arg in enumerate(_args):
-                            if not arg.type.isprimitive(): primitives = False
-                            if arg.type == holes[0]:
-                                del holes[0]
-                                del _args[i]
-                                relevant_args.append(arg)
-                                mass += (i + 1) * fine
-                                idle = False
-                                break
-                        if idle:
-                            for arg in _args: arg.simplify()
-                            fine += 4
+            function = self._get_relevant_function(noun, adjectives, args)
 
-                        IO.debug(primitives, "primitives = {}")
-                        IO.debug(idle, "idle = {}")
-                        IO.debug(holes, "holes = {}")
-                        IO.debug(_args, "_args = {}")
-                        IO.debug("---------------------------")
-
-                    mass += len(_args)
-                    _args = [Object.valueOf(jj) for jj in adjectives]
-                    idle = False
-                    fine = 1
-                    if noun in self._type_builders and len(holes) == 1 and len(holes) == len(function.args):
-                        temp_function = self._type_builders[noun]
-                        if holes == list(temp_function.args): function = temp_function
-                    while not idle and len(holes) > 0 and len(_args) > 0:
-                        idle = True
-                        for i, arg in enumerate(reversed(_args)):
-                            if arg.type == holes[0]:
-                                del holes[0]
-                                relevant_args.append(arg)
-                                mass += (i + 1) * fine
-                                idle = False
-                                break
-                        if idle: fine += 4
-                    mass -= 2 * len(function.args)
-                    if len(holes) > 0: mass = float("Inf")
-
-                    IO.debug(relevant_args, "args = {}")
-                    IO.debug(function, "function = {}")
-                    IO.debug(mass, "mass = {}")
-                    IO.debug("+++++++++++++++++++++++++++")
-
-                    if relevant_function.mass > mass: relevant_function = WFunction(mass, relevant_args, function)
-
-            IO.debug(relevant_function, "relevant_function = {}")
+            IO.debug(function, "relevant_function = {}")
             IO.debug("===========================")
 
-            if relevant_function.mass < float("Inf"):
-                constructed_object = self._execute(relevant_function, relevant_function.relevant_args)
-            if constructed_object is None:
+            if function.mass < float("Inf"):
+                constructed_object = self._execute(function, function.relevant_args)
+            else:
                 constructed_object = Object.valueOf(string)
             return [constructed_object]
         else:
-            _args = [LabeledObject(pp["IN"], arg) for pp in node["PP"] for np in pp["NP"] for arg in self._build(np, [])]
+            _args = [LabeledObject(pp["IN"], arg) for pp in node["PP"] for np in pp["NP"] for arg in
+                     self._build(np, [])]
             return [arg for np in node["NP"] for arg in self._build(np, args + _args)]
 
     def show(self, obj: Object):
