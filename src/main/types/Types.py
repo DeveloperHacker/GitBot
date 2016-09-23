@@ -6,8 +6,7 @@ import github.Repository
 import github.NamedUser
 import github.AuthenticatedUser
 from sphinx.util.pycompat import NoneType
-
-from src.main.Utils import subclasses
+from src.main.Utils import subclasses as _subclasses
 from src.main.nlp.Number import Number
 
 
@@ -62,7 +61,7 @@ class Type(metaclass=ABCMeta):
     @staticmethod
     def extract(words: list) -> list:
         result = []
-        types = {subclass.__name__.lower() for subclass in subclasses(Type)}
+        types = {subclass.__name__.lower() for subclass in _subclasses(Type)}
         for word in words:
             if not isinstance(word, str): continue
             word = word.lower()
@@ -77,7 +76,7 @@ class Type(metaclass=ABCMeta):
     @staticmethod
     def type(element) -> 'Type':
         result = None
-        for subclass in subclasses(Type):
+        for subclass in _subclasses(Type):
             if subclass.isinstance(element) and (result is None or result.mass > subclass.mass):
                 result = subclass
         if result is None: raise Exception("{} object's type not found".format(element.__name__))
@@ -102,7 +101,7 @@ class Type(metaclass=ABCMeta):
     @staticmethod
     def valueOf(blocks: list) -> 'Type':
         if len(blocks) == 0: return Null()
-        for subclass in subclasses(Type):
+        for subclass in _subclasses(Type):
             if subclass.__name__.lower() == blocks[0].lower():
                 result = subclass()
                 if len(blocks) > 1: result = result.set_generic(Type.valueOf(blocks[1:]))

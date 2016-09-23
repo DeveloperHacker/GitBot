@@ -53,7 +53,7 @@ class Object(metaclass=ABCMeta):
         return hash(str(self))
 
     def __deepcopy__(self, memo=None):
-        return Object(self._type, self._object)
+        return Object.create(self._type, self._object)
 
     @staticmethod
     def valueOf(string: str) -> 'Object':
@@ -73,16 +73,6 @@ class Object(metaclass=ABCMeta):
             simple = Object._similar_types[self._type]
             self._type = simple.result
             self._object = simple.run(self._object)
-        elif self._type[0] == "list":
-            simple_type = Types.Null()
-            result = []
-            self._object = list(self._object)
-            for elem in self._object:
-                simple = Object.create(Type.valueOf(self._type[1:]), elem).simplify()
-                simple_type = simple._type
-                result.append(simple._object)
-            self._type = Types.List(simple_type)
-            self._object = result
         return self
 
     _similar_types = {
@@ -99,7 +89,7 @@ class Object(metaclass=ABCMeta):
     }
 
 
-class LabeledObject(Object):
+class LabeledObject:
     @property
     def label(self) -> str:
         return self._label
@@ -109,15 +99,16 @@ class LabeledObject(Object):
         return instance
 
     def __init__(self, label: str, _object: Object):
-        super().__init__(_object._type, _object._object)
-        self._str = _object.__str__
+        self._inner = _object
         self._label = label
 
-    def __deepcopy__(self, memo=None):
-        return LabeledObject(self._label, self)
+    def __deepcopy__(self, memo=None) -> 'LabeledObject':
+        return LabeledObject(self._label, self._inner)
 
-    def __str__(self) -> str:
-        return self._str()
+    def __getattr__(self, item):
+        if item in dir(self._inner):
+            return getattr(self._inner, item)
+        raise AttributeError("'{}' object has no attribute '{}'".format(type(self).__name__, item))
 
 
 class List(Object):
@@ -139,6 +130,18 @@ class List(Object):
             return "{} not found".format(str(self._type))
         else:
             return '\n'.join([str(Object.create(self.type.generic, element)) for element in self._object])
+
+    def simplify(self) -> 'List':
+        simple_type = Types.Null()
+        result = []
+        self._object = list(self._object)
+        for elem in self._object:
+            simple = Object.create(Type.valueOf(self._type[1:]), elem).simplify()
+            simple_type = simple._type
+            result.append(simple._object)
+        self._type = Types.List(simple_type)
+        self._object = result
+        return self
 
 
 class String(Object):

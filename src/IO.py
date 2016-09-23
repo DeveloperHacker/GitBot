@@ -10,52 +10,70 @@ inp = os.getenv("INPUT")
 inp_file = open(inp, "r") if inp is not None else None
 
 
-def write(obj, form="{}"):
+def log(file_name: str, form, *args):
+    data = form.format(*[Utils.string(arg) for arg in list(args)]) if len(list(args)) > 0 else Utils.string(form)
+    file = open(file_name, "a")
+    file.write(data + "\n")
+    file.flush()
+    file.close()
+
+
+def write(form, *args):
+    data = form.format(*[Utils.string(arg) for arg in list(args)]) if len(list(args)) > 0 else Utils.string(form)
     if out_file is None:
-        sys.stdout.write(form.format(Utils.string(obj)))
+        sys.stdout.write(data)
         sys.stdout.flush()
     else:
-        out_file.write(form.format(Utils.string(obj)))
+        out_file.write(data)
         out_file.flush()
 
 
-def writeln(obj, form="{}"):
+def writeln(form, *args):
+    data = form.format(*[Utils.string(arg) for arg in list(args)]) if len(list(args)) > 0 else Utils.string(form)
     if out_file is None:
-        sys.stdout.write(form.format(Utils.string(obj)) + '\n')
+        sys.stdout.write(data + '\n')
         sys.stdout.flush()
     else:
-        out_file.write(form.format(Utils.string(obj)) + '\n')
+        out_file.write(data + '\n')
         out_file.flush()
 
 
 def read(prompt: str) -> str:
+    write(prompt)
     if inp_file is None:
-        write(prompt)
         fcntl.fcntl(sys.stdout.fileno(), fcntl.F_SETFL, os.O_NONBLOCK)
         data = sys.stdout.read()
-        return data
     else:
         data = inp_file.read()
-        write(prompt + data)
-        return data
+        write(data)
+    return data
+
+
+def line(input_stream) -> str:
+    data = input_stream.readline()
+    if len(data) > 0 and data[-1] == '\n':
+        data = data[:-1]
+    elif len(data) > 1 and data[-2:] == '\r\n':
+        data = data[:-2]
+    return data
 
 
 def readln(prompt: str) -> str:
+    write(prompt)
     if inp_file is None:
-        write(prompt)
-        return sys.stdin.readline()[:-1]
+        data = line(sys.stdin)
     else:
-        data = inp_file.readline()[:-1]
-        writeln(prompt + data)
-        return data
+        data = line(inp_file)
+        writeln(data)
+    return data
 
 
 def hreadln(prompt: str) -> str:
     if inp_file is None:
         return getpass(prompt)
     else:
-        return inp_file.readline()[:-1]
+        return line(inp_file)
 
 
-def debug(obj, form="{}"):
-    if os.getenv("DEBUG") == "true": writeln(obj, form)
+def debug(form, *args):
+    if os.getenv("DEBUG") == "true": writeln(form, *args)
