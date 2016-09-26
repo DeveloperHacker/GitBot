@@ -1,4 +1,5 @@
 from abc import abstractmethod, ABCMeta
+from copy import deepcopy
 
 from src.main.Utils import subclasses
 from src.main.nlp.Number import Number
@@ -26,16 +27,17 @@ class Object(metaclass=ABCMeta):
         objects = {subclass.__name__.lower(): subclass for subclass in subclasses(Object)}
         type_name = _type[0].lower()
         for name, subclass in objects.items():
-            if name == LabeledObject.__name__.lower(): continue
             if name == type_name:
                 instance = subclass(_object)
                 break
         if instance is None: raise Exception("Constructor with type {} not found".format(str(_type)))
         return instance
 
-    def __init__(self, _type: Type, _object):
+    def __init__(self, _type: Type, _object, simplifier=None):
+        if not _type.isinstance(_object): raise Exception("Object is not {}".format(str(_type)))
         self._type = _type
         self._object = _object
+        self._simplifier = Function([_type], Types.String(), lambda this: String(str(this))) if simplifier is None else simplifier
 
     @abstractmethod
     def __str__(self) -> str:
@@ -61,54 +63,19 @@ class Object(metaclass=ABCMeta):
             return Url(string)
         elif Type.isemail(string):
             return Email(string)
-        elif Number.isnumber(string.split()):
+        elif Number.isnumber(string):
             return Integer(Number(string.split()))
-        elif string.isnumeric():
-            return Id(string)
         else:
             return String(string)
 
     def simplify(self) -> 'Object':
-        if self._type in Object._similar_types:
-            simple = Object._similar_types[self._type]
-            self._type = simple.result
-            self._object = simple.run(self._object)
-        return self
+        return self._simplifier.run(self._object)
 
-    _similar_types = {
-        Types.User(): Function([Types.User()], Types.Login(), lambda user: user.login),
-        Types.Repo(): Function([Types.Repo()], Types.Id(), lambda repo: repo.id),
-        Types.Gist(): Function([Types.Gist()], Types.Id(), lambda gist: gist.id),
-        Types.Name(): Function([Types.Name()], Types.String(), lambda name: str(name)),
-        Types.Login(): Function([Types.Login()], Types.String(), lambda login: str(login)),
-        Types.Url(): Function([Types.Url()], Types.String(), lambda url: str(url)),
-        Types.Email(): Function([Types.Email()], Types.String(), lambda email: str(email)),
-        Types.Key(): Function([Types.Key()], Types.String(), lambda key: str(key)),
-        Types.Id(): Function([Types.Id()], Types.String(), lambda _id: str(_id)),
-        Types.Integer(): Function([Types.Integer()], Types.String(), lambda _integer: _integer[-1])
-    }
-
-
-class LabeledObject:
-    @property
-    def label(self) -> str:
-        return self._label
-
-    def __new__(cls, label: str, _object: Object):
-        instance = object.__new__(LabeledObject)
-        return instance
-
-    def __init__(self, label: str, _object: Object):
-        self._inner = _object
-        self._label = label
-
-    def __deepcopy__(self, memo=None) -> 'LabeledObject':
-        return LabeledObject(self._label, self._inner)
-
-    def __getattr__(self, item):
-        if item in dir(self._inner):
-            return getattr(self._inner, item)
-        raise AttributeError("'{}' object has no attribute '{}'".format(type(self).__name__, item))
+    def mark(self, label: str) -> 'Object':
+        labeled = deepcopy(self)
+        setattr(labeled, "label", lambda: label)
+        setattr(labeled, "__deepcopy__", lambda memo=None: deepcopy(self).mark(label))
+        return labeled
 
 
 class List(Object):
@@ -121,7 +88,6 @@ class List(Object):
         return self._type
 
     def __init__(self, _object):
-        if not Types.List.isinstance(_object): raise Exception("Object is not list")
         super().__init__(Types.List.create(_object), _object)
 
     def __str__(self):
@@ -154,7 +120,6 @@ class String(Object):
         return self._type
 
     def __init__(self, _object):
-        if not Types.String.isinstance(_object): raise Exception("Object is not string")
         super().__init__(Types.String(), _object)
 
     def __str__(self) -> str:
@@ -164,15 +129,10 @@ class String(Object):
 
 class Any(Object):
     @property
-    def object(self):
-        return self._object
-
-    @property
     def type(self) -> Types.Any:
         return self._type
 
     def __init__(self, _object):
-        if not Types.Any.isinstance(_object): raise Exception("Object is not object")
         super().__init__(Types.Any(), _object)
 
     def __str__(self) -> str:
@@ -191,11 +151,10 @@ class Null(Object):
 
     _instance = None
 
-    def __new__(cls) -> 'Null':
+    def __new__(cls, _object=None) -> 'Null':
         return object.__new__(Null) if Null._instance is None else Null._instance
 
     def __init__(self, _object=None):
-        if not Types.Null.isinstance(_object): raise Exception("Object is not null")
         if Null._instance is None:
             Null._instance = self
             super().__init__(Types.Null(), _object)
@@ -214,8 +173,7 @@ class Integer(Object):
         return self._type
 
     def __init__(self, _object):
-        if not Types.Integer.isinstance(_object): raise Exception("Object is not integer")
-        super().__init__(Types.Integer(), _object)
+        super().__init__(Types.Integer(), _object, Function([Types.Integer()], Types.String(), lambda _integer: String(_integer[-1])))
 
     def __str__(self) -> str:
         _str = str(self._object) if self._object else "───║───"
@@ -232,7 +190,6 @@ class Email(Object):
         return self._type
 
     def __init__(self, _object):
-        if not Types.Email.isinstance(_object): raise Exception("Object is not email")
         super().__init__(Types.Email(), _object)
 
     def __str__(self) -> str:
@@ -251,7 +208,6 @@ class Url(Object):
         return self._type
 
     def __init__(self, _object):
-        if not Types.Url.isinstance(_object): raise Exception("Object is not url")
         super().__init__(Types.Url(), _object)
 
     def __str__(self) -> str:
@@ -270,7 +226,6 @@ class Id(Object):
         return self._type
 
     def __init__(self, _object):
-        if not Types.Id.isinstance(_object): raise Exception("Object is not id")
         super().__init__(Types.Id(), _object)
 
     def __str__(self) -> str:
@@ -289,7 +244,6 @@ class Key(Object):
         return self._type
 
     def __init__(self, _object):
-        if not Types.Key.isinstance(_object): raise Exception("Object is not key")
         super().__init__(Types.Key(), _object)
 
     def __str__(self):
@@ -309,7 +263,6 @@ class Login(Object):
         return self._type
 
     def __init__(self, _object):
-        if not Types.Login.isinstance(_object): raise Exception("Object is not login")
         super().__init__(Types.Login(), _object)
 
     def __str__(self) -> str:
@@ -327,7 +280,6 @@ class Name(Object):
         return self._type
 
     def __init__(self, _object):
-        if not Types.Name.isinstance(_object): raise Exception("Object is not name")
         super().__init__(Types.Name(), _object)
 
     def __str__(self) -> str:
@@ -345,8 +297,7 @@ class Gist(Object):
         return self._type
 
     def __init__(self, _object):
-        if not Types.Gist.isinstance(_object): raise Exception("Object is not gist")
-        super().__init__(Types.Gist(), _object)
+        super().__init__(Types.Gist(), _object, Function([Types.Gist()], Types.Id(), lambda gist: Id(gist.id)))
 
     def __str__(self) -> str:
         login = str(Login(self._object.owner.login))
@@ -364,8 +315,7 @@ class Repo(Object):
         return self._type
 
     def __init__(self, _object):
-        if not Types.Repo.isinstance(_object): raise Exception("Object is not repo")
-        super().__init__(Types.Repo(), _object)
+        super().__init__(Types.Repo(), _object, Function([Types.Repo()], Types.Id(), lambda repo: Id(repo.id)))
 
     def __str__(self) -> str:
         login = str(Login(self._object.owner.login))
@@ -384,8 +334,7 @@ class User(Object):
         return self._type
 
     def __init__(self, _object):
-        if not Types.User.isinstance(_object): raise Exception("Object is not user")
-        super().__init__(Types.User(), _object)
+        super().__init__(Types.User(), _object, Function([Types.User()], Types.Login(), lambda user: Login(user.login)))
 
     def __str__(self) -> str:
         login = str(Login(self.object.login))

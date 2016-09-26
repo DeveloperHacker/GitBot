@@ -1,6 +1,6 @@
 from nltk.parse.stanford import StanfordParser, StanfordDependencyParser
 
-from main.types.Node import *
+from src.main.types.Node import *
 from src import IO
 
 sp = StanfordParser(model_path="edu/stanford/nlp/models/lexparser/englishPCFG.ser.gz")

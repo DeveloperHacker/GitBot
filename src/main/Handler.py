@@ -1,9 +1,10 @@
 from copy import deepcopy
 from github import GithubException
 
-from main.types.Node import *
+from src.main.types.Node import *
+from src.main.types.Types import Type
 from src.main.types.Function import WFunction, NullFunction, Function
-from src.main.types.Object import Object, LabeledObject
+from src.main.types.Object import Object
 from src.main.types.Object import Null
 from src import IO
 from src.main import Simplifier
@@ -144,7 +145,7 @@ class Handler:
                     idle = False
                     break
             if idle:
-                for argument in arguments: argument.simplify()
+                arguments = [argument.simplify() for argument in arguments]
                 fine += 4
             IO.debug("primitives = {}", primitives)
             IO.debug("idle = {}", idle)
@@ -167,7 +168,7 @@ class Handler:
             IO.debug("function = {}", function)
             IO.debug("relevant_arguments = {}", relevant_arguments)
             IO.debug("relevant_function = {}", relevant_function)
-            IO.debug("mass = {}", mass)
+            IO.debug("mass = {}", mass if len(holes) == 0 else float("inf"))
             IO.debug("+++++++++++++++++++++++++++")
             if len(holes) == 0 and relevant_function.mass > mass:
                 relevant_function = WFunction(mass, relevant_arguments, function)
@@ -175,7 +176,10 @@ class Handler:
 
     def _build(self, node: NounPhrase, args: list) -> list:
         if isinstance(node, LeafNounPhrase):
-            string, noun, adjectives, types = Simplifier.simplify(node)
+            string = node.nn.text
+            noun = Simplifier.simplify_word(string)
+            adjectives = Simplifier.simplify_adjectives(node.jjs)
+            types = Type.extract(adjectives)
             if len(types) == 1:
                 type_name = str(types[0])
                 if type_name in self._builders and noun not in self._builders:
@@ -195,7 +199,7 @@ class Handler:
             IO.debug("===========================")
             return [constructed_object]
         else:
-            _args = [LabeledObject(pp.pretext, arg) for pp in node.pps for np in pp.nps for arg in self._build(np, [])]
+            _args = [arg.mark(pp.pretext) for pp in node.pps for np in pp.nps for arg in self._build(np, [])]
             return [arg for np in node.nps for arg in self._build(np, args + _args)]
 
     def show(self, obj: Object):

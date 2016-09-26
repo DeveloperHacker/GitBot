@@ -1,4 +1,4 @@
-from main.types.Function import Function
+from src.main.types.Function import Function
 from src.main.types.Types import *
 from src.main import Simplifier
 
@@ -162,8 +162,8 @@ def create_builders_map(get_git_connector, get_stored) -> dict:
             {"JJ": [], "F": [
                 Function([String()], User(), lambda login: get_git_connector().user(login)),
                 Function([Login()], User(), lambda login: get_git_connector().user(login)),
-                Function([List(User()), String()], User(), lambda _list, _str: _list[Simplifier.number(_str)]),
-                Function([List(User()), Integer()], User(), lambda _list, number: _list[number.value])
+                Function([List(User()), String()], User(), lambda _list, _str: _list[Simplifier.number(_str)] if Number.isnumber(_str) else None),
+                Function([List(User()), Integer()], User(), lambda _list, number: _list[int(number) - 1])
             ]},
             {"JJ": ["this"], "F": [
                 Function([], User(), lambda: get_stored(User()))
@@ -173,17 +173,17 @@ def create_builders_map(get_git_connector, get_stored) -> dict:
             {"JJ": [], "F": [
                 Function([String(), String()], Repo(), lambda login, name: get_git_connector().user(login).get_repo(name)),
                 Function([String(), Name()], Repo(), lambda login, name: get_git_connector().user(login).get_repo(name)),
-                Function([String(), Id()], Repo(), lambda login, _id: get_git_connector().user(login).get_repo(get_git_connector().repo(int(_id)).name) if _id.isnumeric() else None),
+                Function([String(), Integer()], Repo(), lambda login, number: get_git_connector().user(login).get_repo(get_git_connector().repo(int(number)).name)),
                 Function([Login(), String()], Repo(), lambda login, name: get_git_connector().user(login).get_repo(name)),
                 Function([Login(), Name()], Repo(), lambda login, name: get_git_connector().user(login).get_repo(name)),
-                Function([Login(), Id()], Repo(), lambda login, _id: get_git_connector().user(login).get_repo(get_git_connector().repo(int(_id)).name) if _id.isnumeric() else None),
+                Function([Login(), Integer()], Repo(), lambda login, number: get_git_connector().user(login).get_repo(get_git_connector().repo(int(number)).name)),
                 Function([User(), String()], Repo(), lambda user, name: user.get_repo(name)),
                 Function([User(), Name()], Repo(), lambda user, name: user.get_repo(name)),
                 Function([User(), Id()], Repo(), lambda user, _id: user.get_repo(get_git_connector().repo(int(_id)).name) if _id.isnumeric() else None),
-                Function([String()], Repo(), lambda _id: get_git_connector().repo(int(_id)) if _id.isnumeric() else None),
-                Function([Id()], Repo(), lambda _id: get_git_connector().repo(int(_id)) if _id.isnumeric() else None),
+                Function([String()], Repo(), lambda _str: get_git_connector().repo(int(Simplifier.number(_str))) if Number.isnumber(_str) else None),
+                Function([Integer()], Repo(), lambda number: get_git_connector().repo(int(number))),
                 Function([List(Repo()), String()], Repo(), lambda _list, _str: _list[Simplifier.number(_str)] if Number.isnumber(_str) else None),
-                Function([List(Repo()), Integer()], Repo(), lambda _list, number: _list[number.value])
+                Function([List(Repo()), Integer()], Repo(), lambda _list, number: _list[int(number) - 1])
             ]},
             {"JJ": ["this"], "F": [
                 Function([], Repo(), lambda: get_stored(Repo()))
@@ -191,7 +191,7 @@ def create_builders_map(get_git_connector, get_stored) -> dict:
             {"JJ": ["my"], "F": [
                 Function([String()], Repo(), lambda name: get_git_connector().user().get_repo(name)),
                 Function([Name()], Repo(), lambda name: get_git_connector().user().get_repo(name)),
-                Function([Id()], Repo(), lambda _id: get_git_connector().user().get_repo(get_git_connector().repo(_id).name) if _id.isnumeric() else None)
+                Function([Integer()], Repo(), lambda number: get_git_connector().user().get_repo(get_git_connector().repo(int(number)).name))
             ]}
         ],
         "gist": [
@@ -204,8 +204,8 @@ def create_builders_map(get_git_connector, get_stored) -> dict:
                 Function([User(), Id()], Gist(), lambda user, _id: user.get_gist(_id)),
                 Function([String()], Gist(), lambda _id: get_git_connector().gist(_id)),
                 Function([Id()], Gist(), lambda _id: get_git_connector().gist(_id)),
-                Function([List(Gist()), String()], Gist(), lambda _list, _str: _list[Simplifier.number(_str)] if Number.isnumber(_str) else None),
-                Function([List(Gist()), Integer()], Gist(), lambda _list, number: _list[number.value])
+                Function([List(Gist()), String()], Gist(), lambda _list, _str: _list[int(Simplifier.number(_str))] if Number.isnumber(_str) else None),
+                Function([List(Gist()), Integer()], Gist(), lambda _list, number: _list[int(number) - 1])
             ]},
             {"JJ": ["this"], "F": [
                 Function([], Repo(), lambda: get_stored(Repo()))
