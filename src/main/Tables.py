@@ -1,3 +1,4 @@
+from src.main.types.Shell import Shell
 from src.main.types.Function import Function
 from src.main.types.Types import *
 from src.main import Simplifier
@@ -64,113 +65,113 @@ def create_functions_map(get_git_handler) -> dict:
 def create_builders_map(get_git_connector, get_stored) -> dict:
     flat_map = {
         "repos": [
-            {"JJ": [], "F": [
+            Shell([], [
                 Function([String()], List(Repo()), lambda login: list(get_git_connector().user(login).get_repos())),
                 Function([Login()], List(Repo()), lambda login: list(get_git_connector().user(login).get_repos())),
                 Function([User()], List(Repo()), lambda user: list(user.get_repos()))
-            ]},
-            {"JJ": ["my"], "F": [
+            ]),
+            Shell(["my"], [
                 Function([], List(Repo()), lambda: list(get_git_connector().user().get_repos()))
-            ]},
-            {"JJ": ["starred"], "F": [
+            ]),
+            Shell(["starred"], [
                 Function([String()], List(Repo()), lambda login: list(get_git_connector().user(login).get_starred())),
                 Function([Login()], List(Repo()), lambda login: list(get_git_connector().user(login).get_starred())),
                 Function([User()], List(Repo()), lambda user: list(user.get_starred()))
-            ]}
+            ])
         ],
         "gists": [
-            {"JJ": [], "F": [
+            Shell([], [
                 Function([String()], List(Gist()), lambda login: list(get_git_connector().user(login).get_gists())),
                 Function([Login()], List(Gist()), lambda login: list(get_git_connector().user(login).get_gists())),
                 Function([User()], List(Gist()), lambda user: list(user.get_gists()))
-            ]},
-            {"JJ": ["my"], "F": [
+            ]),
+            Shell(["my"], [
                 Function([], List(Gist()), lambda: list(get_git_connector().user().get_gists()))
-            ]}
+            ])
         ],
         "keys": [
-            {"JJ": [], "F": [
+            Shell([], [
                 Function([String()], Key(), lambda login: list(get_git_connector().user(login).get_keys())),
                 Function([Login()], Key(), lambda login: list(get_git_connector().user(login).get_keys())),
                 Function([User()], Key(), lambda user: list(user.get_keys()))
-            ]},
-            {"JJ": ["my"], "F": [
+            ]),
+            Shell(["my"], [
                 Function([], Key(), lambda: list(get_git_connector().user().get_keys()))
-            ]}
+            ])
         ],
         "name": [
-            {"JJ": [], "F": [
+            Shell([], [
                 Function([String()], Name(), lambda login: get_git_connector().user(login).name),
                 Function([Login()], Name(), lambda login: get_git_connector().user(login).name),
                 Function([User()], Name(), lambda user: user.name),
                 Function([Repo()], Name(), lambda repo: repo.name)
-            ]},
-            {"JJ": ["my"], "F": [
+            ]),
+            Shell(["my"], [
                 Function([], Name(), lambda: get_git_connector().user().name)
-            ]}
+            ])
         ],
         "email": [
-            {"JJ": [], "F": [
+            Shell([], [
                 Function([String()], Email(), lambda login: get_git_connector().user(login).isemail),
                 Function([Login()], Email(), lambda login: get_git_connector().user(login).isemail),
                 Function([User()], Email(), lambda user: user.isemail),
                 Function([Email()], Email(), lambda email: email)
-            ]},
-            {"JJ": ["my"], "F": [
+            ]),
+            Shell(["my"], [
                 Function([], Email(), lambda: get_git_connector().user().isemail)
-            ]}
+            ])
         ],
         "login": [
-            {"JJ": [], "F": [
+            Shell([], [
                 Function([String()], Login(), lambda login: get_git_connector().user(login).login),
                 Function([Login()], Login(), lambda login: get_git_connector().user(login).login),
                 Function([User()], Login(), lambda user: user.login)
-            ]},
-            {"JJ": ["my"], "F": [
+            ]),
+            Shell(["my"], [
                 Function([], Login(), lambda: get_git_connector().user().login)
-            ]}
+            ])
         ],
         "url": [
-            {"JJ": [], "F": [
+            Shell([], [
                 Function([String()], Url(), lambda login: get_git_connector().user(login).isurl),
                 Function([Login()], Url(), lambda login: get_git_connector().user(login).isurl),
                 Function([User()], Url(), lambda user: user.isurl),
                 Function([Url()], Url(), lambda url: url)
-            ]},
-            {"JJ": ["my"], "F": [
+            ]),
+            Shell(["my"], [
                 Function([], Url(), lambda: get_git_connector().user().isurl)
-            ]},
-            {"JJ": ["orgs"], "F": [
+            ]),
+            Shell(["orgs"], [
                 Function([String()], Url(), lambda login: get_git_connector().user(login).organizations_url),
                 Function([Login()], Url(), lambda login: get_git_connector().user(login).organizations_url),
                 Function([User()], Url(), lambda user: user.organizations_url)
-            ]},
-            {"JJ": ["my", "orgs"], "F": [
+            ]),
+            Shell(["my", "orgs"], [
                 Function([],
                          ["url"], lambda: get_git_connector().user().organizations_url)
-            ]},
-            {"JJ": ["avatar"], "F": [
+            ]),
+            Shell(["avatar"], [
                 Function([String()], Url(), lambda login: get_git_connector().user(login).avatar_url),
                 Function([Login()], Url(), lambda login: get_git_connector().user(login).avatar_url),
                 Function([User()], Url(), lambda user: user.avatar_url)
-            ]},
-            {"JJ": ["my", "avatar"], "F": [
+            ]),
+            Shell(["my", "avatar"], [
                 Function([], Url(), lambda: get_git_connector().user().avatar_url)
-            ]}
+            ])
         ],
         "user": [
-            {"JJ": [], "F": [
+            Shell([], [
                 Function([String()], User(), lambda login: get_git_connector().user(login)),
                 Function([Login()], User(), lambda login: get_git_connector().user(login)),
                 Function([List(User()), String()], User(), lambda _list, _str: _list[Simplifier.number(_str)] if Number.isnumber(_str) else None),
                 Function([List(User()), Integer()], User(), lambda _list, number: _list[int(number) - 1])
-            ]},
-            {"JJ": ["this"], "F": [
+            ]),
+            Shell(["this"], [
                 Function([], User(), lambda: get_stored(User()))
-            ]}
+            ])
         ],
         "repo": [
-            {"JJ": [], "F": [
+            Shell([], [
                 Function([String(), String()], Repo(), lambda login, name: get_git_connector().user(login).get_repo(name)),
                 Function([String(), Name()], Repo(), lambda login, name: get_git_connector().user(login).get_repo(name)),
                 Function([String(), Integer()], Repo(), lambda login, number: get_git_connector().user(login).get_repo(get_git_connector().repo(int(number)).name)),
@@ -184,18 +185,18 @@ def create_builders_map(get_git_connector, get_stored) -> dict:
                 Function([Integer()], Repo(), lambda number: get_git_connector().repo(int(number))),
                 Function([List(Repo()), String()], Repo(), lambda _list, _str: _list[Simplifier.number(_str)] if Number.isnumber(_str) else None),
                 Function([List(Repo()), Integer()], Repo(), lambda _list, number: _list[int(number) - 1])
-            ]},
-            {"JJ": ["this"], "F": [
+            ]),
+            Shell(["this"], [
                 Function([], Repo(), lambda: get_stored(Repo()))
-            ]},
-            {"JJ": ["my"], "F": [
+            ]),
+            Shell(["my"], [
                 Function([String()], Repo(), lambda name: get_git_connector().user().get_repo(name)),
                 Function([Name()], Repo(), lambda name: get_git_connector().user().get_repo(name)),
                 Function([Integer()], Repo(), lambda number: get_git_connector().user().get_repo(get_git_connector().repo(int(number)).name))
-            ]}
+            ])
         ],
         "gist": [
-            {"JJ": [], "F": [
+            Shell([], [
                 Function([String(), String()], Gist(), lambda login, name: get_git_connector().user(login).get_gist(name)),
                 Function([String(), Id()], Gist(), lambda login, name: get_git_connector().user(login).get_gist(name)),
                 Function([Login(), String()], Gist(), lambda login, name: get_git_connector().user(login).get_gist(name)),
@@ -206,33 +207,33 @@ def create_builders_map(get_git_connector, get_stored) -> dict:
                 Function([Id()], Gist(), lambda _id: get_git_connector().gist(_id)),
                 Function([List(Gist()), String()], Gist(), lambda _list, _str: _list[int(Simplifier.number(_str))] if Number.isnumber(_str) else None),
                 Function([List(Gist()), Integer()], Gist(), lambda _list, number: _list[int(number) - 1])
-            ]},
-            {"JJ": ["this"], "F": [
+            ]),
+            Shell(["this"], [
                 Function([], Repo(), lambda: get_stored(Repo()))
-            ]},
-            {"JJ": ["my"], "F": [
+            ]),
+            Shell(["my"], [
                 Function([String()], Repo(), lambda name: get_git_connector().user().get_repo(name)),
                 Function([Name()], Repo(), lambda name: get_git_connector().user().get_repo(name)),
                 Function([Id()], Repo(), lambda _id: get_git_connector().user().get_repo(get_git_connector().repo(_id).name))
-            ]}
+            ])
         ],
         "id": [
-            {"JJ": [], "F": [
+            Shell([], [
                 Function([String()], Id(), lambda login: get_git_connector().user(login).id),
                 Function([Login()], Id(), lambda login: get_git_connector().user(login).id),
                 Function([User()], Id(), lambda user: user.id),
                 Function([Repo()], Id(), lambda repo: repo.id),
                 Function([Gist()], Id(), lambda gist: gist.id),
                 Function([Key()], Id(), lambda key: key.id)
-            ]},
-            {"JJ": ["my"], "F": [
+            ]),
+            Shell(["my"], [
                 Function([], Id(), lambda: get_git_connector().user().id)
-            ]}
+            ])
         ],
         "key": [
-            {"JJ": [], "F": [
+            Shell([], [
                 Function([String()], Key(), lambda _str: _str)
-            ]}
+            ])
         ]
     }
     return flat_map

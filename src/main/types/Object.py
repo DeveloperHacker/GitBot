@@ -28,16 +28,18 @@ class Object(metaclass=ABCMeta):
         type_name = _type[0].lower()
         for name, subclass in objects.items():
             if name == type_name:
-                instance = subclass(_object)
+                instance = subclass(_object, _type)
                 break
         if instance is None: raise Exception("Constructor with type {} not found".format(str(_type)))
         return instance
 
-    def __init__(self, _type: Type, _object, simplifier=None):
+    def __init__(self, _type: Type, _object, expected: Type, simplifier=None):
         if not _type.isinstance(_object): raise Exception("Object is not {}".format(str(_type)))
+        if expected[0] != _type[0]: raise Exception("Wut {} != {}".format(_type, expected))
         self._type = _type
         self._object = _object
-        self._simplifier = Function([_type], Types.String(), lambda this: String(str(this))) if simplifier is None else simplifier
+        if simplifier is None: simplifier = Function([_type], Types.String(), lambda this: String(str(this)))
+        self._simplifier = simplifier
 
     @abstractmethod
     def __str__(self) -> str:
@@ -87,13 +89,13 @@ class List(Object):
     def type(self) -> Types.List:
         return self._type
 
-    def __init__(self, _object):
-        super().__init__(Types.List.create(_object), _object)
+    def __init__(self, _object, expected=Types.List(Types.Any())):
+        super().__init__(Types.List.create(_object, expected.generic), _object, expected)
 
     def __str__(self):
         self._object = list(self._object)
         if len(self._object) == 0:
-            return "{} not found".format(str(self._type))
+            return "List of {} is empty".format(self._type.generic)
         else:
             return '\n'.join([str(Object.create(self.type.generic, element)) for element in self._object])
 
@@ -119,8 +121,8 @@ class String(Object):
     def type(self) -> Types.String:
         return self._type
 
-    def __init__(self, _object):
-        super().__init__(Types.String(), _object)
+    def __init__(self, _object, expected=Types.String()):
+        super().__init__(Types.String(), _object, expected)
 
     def __str__(self) -> str:
         _str = str(self._object) if self._object else "───║───"
@@ -132,8 +134,8 @@ class Any(Object):
     def type(self) -> Types.Any:
         return self._type
 
-    def __init__(self, _object):
-        super().__init__(Types.Any(), _object)
+    def __init__(self, _object, expected=Types.Any()):
+        super().__init__(Types.Any(), _object, expected)
 
     def __str__(self) -> str:
         _str = str(self._object) if self._object else "───║───"
@@ -154,10 +156,10 @@ class Null(Object):
     def __new__(cls, _object=None) -> 'Null':
         return object.__new__(Null) if Null._instance is None else Null._instance
 
-    def __init__(self, _object=None):
+    def __init__(self, _object=None, expected=Types.Null()):
         if Null._instance is None:
             Null._instance = self
-            super().__init__(Types.Null(), _object)
+            super().__init__(Types.Null(), _object, expected)
 
     def __str__(self) -> str:
         return ""
@@ -172,8 +174,9 @@ class Integer(Object):
     def type(self) -> Types.Integer:
         return self._type
 
-    def __init__(self, _object):
-        super().__init__(Types.Integer(), _object, Function([Types.Integer()], Types.String(), lambda _integer: String(_integer[-1])))
+    def __init__(self, _object, expected=Types.Integer()):
+        super().__init__(Types.Integer(), _object, expected,
+                         simplifier=Function([Types.Integer()], Types.String(), lambda _integer: String(_integer[-1])))
 
     def __str__(self) -> str:
         _str = str(self._object) if self._object else "───║───"
@@ -189,8 +192,8 @@ class Email(Object):
     def type(self) -> Types.Email:
         return self._type
 
-    def __init__(self, _object):
-        super().__init__(Types.Email(), _object)
+    def __init__(self, _object, expected=Types.Email()):
+        super().__init__(Types.Email(), _object, expected)
 
     def __str__(self) -> str:
         _str = str(self._object) if self._object else "───║───"
@@ -207,8 +210,8 @@ class Url(Object):
     def type(self) -> Types.Url:
         return self._type
 
-    def __init__(self, _object):
-        super().__init__(Types.Url(), _object)
+    def __init__(self, _object, expected=Types.Url()):
+        super().__init__(Types.Url(), _object, expected)
 
     def __str__(self) -> str:
         _str = str(self._object) if self._object else "───║───"
@@ -225,8 +228,8 @@ class Id(Object):
     def type(self) -> Types.Id:
         return self._type
 
-    def __init__(self, _object):
-        super().__init__(Types.Id(), _object)
+    def __init__(self, _object, expected=Types.Id()):
+        super().__init__(Types.Id(), _object, expected)
 
     def __str__(self) -> str:
         _str = str(self._object) if self._object else "───║───"
@@ -243,8 +246,8 @@ class Key(Object):
     def type(self) -> Types.Key:
         return self._type
 
-    def __init__(self, _object):
-        super().__init__(Types.Key(), _object)
+    def __init__(self, _object, expected=Types.Id()):
+        super().__init__(Types.Key(), _object, expected)
 
     def __str__(self):
         key = str(self._object.key) if self._object else ""
@@ -262,8 +265,8 @@ class Login(Object):
     def type(self) -> Types.Login:
         return self._type
 
-    def __init__(self, _object):
-        super().__init__(Types.Login(), _object)
+    def __init__(self, _object, expected=Types.Login()):
+        super().__init__(Types.Login(), _object, expected)
 
     def __str__(self) -> str:
         _str = str(self._object) if self._object else "───║───"
@@ -279,8 +282,8 @@ class Name(Object):
     def type(self) -> Types.Name:
         return self._type
 
-    def __init__(self, _object):
-        super().__init__(Types.Name(), _object)
+    def __init__(self, _object, expected=Types.Name()):
+        super().__init__(Types.Name(), _object, expected)
 
     def __str__(self) -> str:
         _str = str(self._object) if self._object else "───║───"
@@ -296,8 +299,9 @@ class Gist(Object):
     def type(self) -> Types.Gist:
         return self._type
 
-    def __init__(self, _object):
-        super().__init__(Types.Gist(), _object, Function([Types.Gist()], Types.Id(), lambda gist: Id(gist.id)))
+    def __init__(self, _object, expected=Types.Gist()):
+        super().__init__(Types.Gist(), _object, expected,
+                         simplifier=Function([Types.Gist()], Types.Id(), lambda gist: Id(gist.id)))
 
     def __str__(self) -> str:
         login = str(Login(self._object.owner.login))
@@ -314,8 +318,9 @@ class Repo(Object):
     def type(self) -> Types.Repo:
         return self._type
 
-    def __init__(self, _object):
-        super().__init__(Types.Repo(), _object, Function([Types.Repo()], Types.Id(), lambda repo: Id(repo.id)))
+    def __init__(self, _object, expected=Types.Repo()):
+        super().__init__(Types.Repo(), _object, expected,
+                         simplifier=Function([Types.Repo()], Types.Id(), lambda repo: Id(repo.id)))
 
     def __str__(self) -> str:
         login = str(Login(self._object.owner.login))
@@ -333,8 +338,9 @@ class User(Object):
     def type(self) -> Types.User:
         return self._type
 
-    def __init__(self, _object):
-        super().__init__(Types.User(), _object, Function([Types.User()], Types.Login(), lambda user: Login(user.login)))
+    def __init__(self, _object, expected=Types.User()):
+        super().__init__(Types.User(), _object, expected,
+                         simplifier=Function([Types.User()], Types.Login(), lambda user: Login(user.login)))
 
     def __str__(self) -> str:
         login = str(Login(self.object.login))

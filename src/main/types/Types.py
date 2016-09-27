@@ -77,11 +77,11 @@ class Type(metaclass=ABCMeta):
     def type(element) -> 'Type':
         result = None
         for subclass in _subclasses(Type):
-            if subclass.isinstance(element) and (result is None or result.mass > subclass.mass):
+            if subclass.isinstance(element) and (result is None or result._mass > subclass._mass):
                 result = subclass
         if result is None: raise Exception("{} object's type not found".format(element.__name__))
         result = result()
-        result._blocks = result._blocks + tuple(result.get_generic(element))
+        result._blocks = result._blocks + tuple(result.get_generic(element, Any()))
         return result
 
     _mass = 0
@@ -109,7 +109,7 @@ class Type(metaclass=ABCMeta):
         return Null()
 
     @staticmethod
-    def get_generic(element) -> 'Type': return ()
+    def get_generic(element, expected) -> 'Type': return ()
 
 
 class List(Type):
@@ -128,7 +128,7 @@ class List(Type):
         return "{}s".format(str(self._generic))
 
     @staticmethod
-    def get_generic(element) -> 'Type':
+    def get_generic(element, expected) -> 'Type':
         generic = None
         for elem in list(element):
             _type = Type.type(elem)
@@ -137,11 +137,11 @@ class List(Type):
             elif generic != _type:
                 generic = None
                 break
-        return Any() if generic is None else generic
+        return expected if generic is None else generic
 
     @staticmethod
-    def create(element) -> 'List':
-        return List(List.get_generic(element))
+    def create(element, expected) -> 'List':
+        return List(List.get_generic(element, expected))
 
 
 class String(Type):

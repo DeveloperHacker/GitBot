@@ -24,6 +24,31 @@ def __static__() -> (dict, dict, dict, set):
 class Number:
     _units, _tens, _scales, _numbers = __static__()
 
+    class Token:
+        def __init__(self, word: str):
+            word = word.lower()
+            self.plural = word[-1] == 's'
+            if len(word) > 1 and word[-1] == 's':
+                word = word[:-1]
+            elif len(word) > 2 and word[-2:] == 'st' and word[:-2].isnumeric():
+                word = word[:-2]
+            self.word = word
+            if word in Number._units:
+                self.value = Number._units[word]
+                self.power = 0
+            elif word in Number._tens:
+                self.value = Number._tens[word]
+                self.power = 1
+            elif word in Number._scales:
+                self.value = Number._scales[word]
+                self.power = 3
+            elif word.isnumeric():
+                self.value = int(word)
+                self.power = 2
+            else:
+                self.value = None
+                self.power = None
+
     @property
     def value(self) -> int:
         return self._value
@@ -50,7 +75,7 @@ class Number:
         result = []
         number = []
         for word in words:
-            if Number.isnumber([word]):
+            if Number.isnumber(word):
                 number.append(word)
             elif len(number) != 0:
                 result.append(Number(number))
@@ -72,51 +97,32 @@ class Number:
         current = None
         prev_power = float("inf")
         for word in words:
-            word = word.lower()
-            plural = word[-1] == 's'
-            if len(word) > 1 and word[-1] == 's': word = word[:-1]
-            elif len(word) > 2 and word[-2:] == 'st' and word[:-2].isnumeric(): word = word[:-2]
-            if word in Number._units or word in Number._tens:
-                for power, nums in [(0, Number._units), (1, Number._tens)]:
-                    if word in nums:
-                        if prev_power > power:
-                            current = nums[word] + (current if current else 0)
-                        elif plural:
-                            current *= nums[word]
-                        else:
-                            result.append(str(current))
-                            current = nums[word]
-                        prev_power = power
-            elif word in Number._scales:
-                if prev_power < 2 or plural:
-                    current *= Number._scales[word]
-                else:
-                    result.append(str(current))
-                    current = Number._scales[word]
-                prev_power = 2
-            elif word.isnumeric():
+            token = Number.Token(word)
+            if prev_power == token.power and not token.plural or token.power == 2:
                 result.append(str(current if current else 0))
+            if token.power in {0, 1}:
+                if prev_power > token.power:
+                    current = token.value + (current if current else 0)
+                elif token.plural:
+                    current *= token.value
+                else:
+                    current = token.value
+            elif token.power == 2:
                 current = int(word)
-                prev_power = 1
+            elif token.power == 3:
+                current = Number._scales[word]
+            prev_power = token.power
         result.append(str(current))
-        result = ''.join(result)
-        return 0 if result == '' else int(result)
+        result = "".join(result)
+        return 0 if result == "" else int(result)
 
     @staticmethod
-    def isnumber(words: str) -> bool:
-        if isinstance(words, int): words = [words]
+    def isnumber(words) -> bool:
+        if isinstance(words, int): return True
         elif isinstance(words, str): words = words.split()
         else: return False
         for word in words:
-            if isinstance(word, int): word = str(word)
-            if not isinstance(word, str): return False
-            word.lower()
-            if len(word) > 1 and word[-1] == 's': word = word[:-1]
-            elif len(word) > 2 and word[-2:] == 'st' and word[:-2].isnumeric(): word = word[:-2]
-            if not(word in Number._units
-                   or word in Number._tens
-                   or word in Number._scales
-                   or word.isnumeric()):
-                return False
+            token = Number.Token(word)
+            if token.power is None: return False
         return True
 

@@ -38,12 +38,5 @@ def format(form: str, *args):
     return form.format(*[string(arg) for arg in args])
 
 
-def difference(first: list, second: list) -> list:
-    copy_list = deepcopy(second)
-    result = []
-    for element in first:
-        if element in copy_list:
-            copy_list.remove(element)
-        else:
-            result.append(element)
-    return result
+def format_nick(nick: str, max_len: int) -> str:
+    return nick[max_len - 3] + "..." if len(nick) > max_len else " " * (max_len - len(nick)) + nick

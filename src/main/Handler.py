@@ -1,6 +1,8 @@
 from copy import deepcopy
 from github import GithubException
 
+from src.main.types.Shell import Shell
+from src.main import Utils
 from src.main.types.Node import *
 from src.main.types.Types import Type
 from src.main.types.Function import WFunction, NullFunction, Function
@@ -12,7 +14,6 @@ from src.main import Tables
 from src.main.nlp import Corrector
 from src.main.types import Types
 from src.main.Connector import Connector, NotAutorisedUserException
-from src.main.Utils import difference
 
 
 class Handler:
@@ -36,47 +37,45 @@ class Handler:
     def stop(self):
         self._connect = False
 
-    @staticmethod
-    def format_nick(nick: str, max_len: int) -> str:
-        return nick[max_len - 3] + "..." if len(nick) > max_len else " " * (max_len - len(nick)) + nick
-
     def _print(self, obj):
         for string in str(obj).split("\n"):
             if string == "": continue
-            IO.writeln(self.format_nick(self._bot_nick, self._max_nick_len) + "  ::  " + string)
+            IO.writeln(Utils.format_nick(self._bot_nick, self._max_nick_len) + "  ::  " + string)
 
     def _read(self) -> str:
-        return IO.readln(self.format_nick(self._nick, self._max_nick_len) + "  ::  ")
+        return IO.readln(Utils.format_nick(self._nick, self._max_nick_len) + "  ::  ")
 
     def _hide_read(self) -> str:
-        return IO.readln(self.format_nick("password", self._max_nick_len) + "  ::  ")
+        return IO.readln(Utils.format_nick("password", self._max_nick_len) + "  ::  ")
         # return IO.hreadln(self.format_nick(self._nick, self._max_nick_len) + "  ::  ")  # not work in pycharm console
 
     def _custom_read(self, prompt: str):
-        return IO.readln(self.format_nick(prompt, self._max_nick_len) + "  ::  ")
+        return IO.readln(Utils.format_nick(prompt, self._max_nick_len) + "  ::  ")
 
-    def _start_build(self, root: Root):
+    def _init_build(self, root: Root) -> list:
         if root is None: return
+        result = []
         for vp in root.vps:
             if len(vp.nps) == 0:
                 for vb in vp.vbs:
-                    vb = Simplifier.simplify_word(vb)
+                    vb = Simplifier.simplify_word(vb.text)
                     if vb not in self._functions: continue
-                    self._functions[vb](Null())
+                    result.append((self._functions[vb], Null()))
             else:
                 for node in vp.nps:
                     args = self._build(node, [])
                     for vb in vp.vbs:
                         vb = Simplifier.simplify_word(vb.text)
                         if vb not in self._functions: continue
-                        for arg in args: self._functions[vb](arg)
+                        result.extend([(self._functions[vb], arg) for arg in args])
+        return result
 
     def _handle(self):
-        data = self._read()
-        root = Corrector.parse(data)
-        IO.debug(root)
         try:
-            self._start_build(root)
+            data = self._read()
+            root = Corrector.parse(data)
+            functions = self._init_build(root)
+            for function in functions: function[0](function[1])
         except GithubException as ex:
             if ex.status == 403:
                 self._print(ex.data["message"])
@@ -106,19 +105,19 @@ class Handler:
         if noun in self._builders:
             shells = self._builders[noun]
             for shell in shells:
-                set_shell_adjectives = set(shell["JJ"])
+                set_shell_adjectives = set(shell.adjectives)
                 conjunction = set_shell_adjectives & set_adjectives
                 if len(conjunction) == len(set_shell_adjectives): relevant_shells.append(shell)
         return relevant_shells
 
-    def _get_relevant_shell(self, noun: str, adjectives: list) -> dict:
+    def _get_relevant_shell(self, noun: str, adjectives: list) -> Shell:
         relevant_shells = self._get_relevant_shells(noun, adjectives)
         if len(relevant_shells) == 0: return None
         min_shell = relevant_shells[0]
-        min_dist = abs(len(adjectives) - len(min_shell["JJ"]))
+        min_dist = min_shell.distance(adjectives)
         for i, shell in enumerate(relevant_shells):
             if i == 0: continue
-            distance = abs(len(adjectives) - len(shell["JJ"]))
+            distance = shell.distance(adjectives)
             if distance < min_dist:
                 min_dist = distance
                 min_shell = shell
@@ -158,11 +157,15 @@ class Handler:
         relevant_function = NullFunction()
         for function in functions:
             holes = list(deepcopy(function.args))
+            IO.debug(holes)
+            IO.debug(arguments)
+            IO.debug(adjectives)
+            IO.debug(list(reversed([Object.valueOf(jj) for jj in adjectives])))
             relevant_arguments, mass = self._get_arguments(arguments, holes)
             if noun in self._type_builders and len(holes) == 1 and len(function.args) == 1:
                 temp_function = self._type_builders[noun]
                 if holes == list(temp_function.args): function = temp_function
-            pair = self._get_arguments(reversed([Object.valueOf(jj) for jj in adjectives]), holes)
+            pair = self._get_arguments(list(reversed([Object.valueOf(jj) for jj in adjectives])), holes)
             relevant_arguments.extend(pair[0])
             mass += pair[1] - 2 * len(function.args)
             IO.debug("function = {}", function)
@@ -190,8 +193,8 @@ class Handler:
             function = NullFunction()
             shell = self._get_relevant_shell(noun, adjectives)
             if shell is not None:
-                adjectives = difference(adjectives, shell["JJ"])
-                function = self._get_relevant_function(noun, adjectives, shell["F"], args)
+                adjectives = shell.difference(adjectives)
+                function = self._get_relevant_function(noun, adjectives, shell.functions, args)
                 if not isinstance(function, NullFunction):
                     constructed_object = self._execute(function, function.relevant_args)
             if constructed_object is None: constructed_object = Object.valueOf(string)

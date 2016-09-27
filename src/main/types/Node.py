@@ -80,13 +80,13 @@ class PrepositionalPhrase(Node):
 
 
 class Root(Node):
-    def __init__(self, vps=None, nps=None):
+    def __init__(self, nps=None, vps=None):
         super().__init__("R")
-        self.vps = [] if vps is None else vps
         self.nps = [] if nps is None else nps
+        self.vps = [] if vps is None else vps
 
     def children(self) -> dict:
-        return {"VP": self.vps, "NP": self.nps}
+        return {"NP": self.nps, "VP": self.vps}
 
 
 class Word(Node, metaclass=ABCMeta):
