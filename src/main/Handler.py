@@ -1,19 +1,17 @@
 from copy import deepcopy
 from github import GithubException
 
-from src.main.types.Shell import Shell
-from src.main import Utils
+from src.main.types import Types
 from src.main.types.Node import *
-from src.main.types.Types import Type
+from src.main.types.Shell import Shell
+from src.main.types.Object import Object, Null
 from src.main.types.Function import WFunction, NullFunction, Function
-from src.main.types.Object import Object
-from src.main.types.Object import Null
-from src import IO
+from src.main.Connector import Connector, NotAutorisedUserException
+from src.main.nlp import Corrector
 from src.main import Simplifier
 from src.main import Tables
-from src.main.nlp import Corrector
-from src.main.types import Types
-from src.main.Connector import Connector, NotAutorisedUserException
+from src.main import Utils
+from src import IO
 
 
 class Handler:
@@ -182,21 +180,18 @@ class Handler:
             string = node.nn.text
             noun = Simplifier.simplify_word(string)
             adjectives = Simplifier.simplify_adjectives(node.jjs)
-            types = Type.extract(adjectives)
-            if len(types) == 1:
-                type_name = str(types[0])
-                if type_name in self._builders and noun not in self._builders:
-                    adjectives.remove(type_name)
-                    adjectives.append(string)
-                    noun = type_name
+            type_names = [str(type) for type in Types.Type.extract(adjectives)]
+            if len(type_names) == 1 and type_names[0] in self._builders and noun not in self._builders:
+                adjectives.remove(type_names[0])
+                adjectives.append(string)
+                noun = type_names[0]
             constructed_object = None
             function = NullFunction()
             shell = self._get_relevant_shell(noun, adjectives)
             if shell is not None:
                 adjectives = shell.difference(adjectives)
                 function = self._get_relevant_function(noun, adjectives, shell.functions, args)
-                if not isinstance(function, NullFunction):
-                    constructed_object = self._execute(function, function.relevant_args)
+                if function.mass < float("inf"): constructed_object = self._execute(function, function.relevant_args)
             if constructed_object is None: constructed_object = Object.valueOf(string)
             IO.debug("relevant_function = {}", function)
             IO.debug("===========================")

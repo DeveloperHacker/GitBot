@@ -2,6 +2,7 @@ from copy import deepcopy
 
 from nltk.parse.stanford import StanfordParser, StanfordDependencyParser
 
+from src.main.interfaces.Corrector import Corrector
 from src.main.types.Node import *
 from src import IO
 
@@ -27,6 +28,17 @@ conjunction_level = {"CC", ","}
 belongs_words = {"in", "into", "at", "for", "of", "'s"}
 
 fixable_sentence = {"NP", "FRAG", "UCP", "PP", "ADJP", "INTJ"}
+
+
+class StanfordCorrector(Corrector):
+    def correct(self, parsed: Node) -> Root:
+        root = None
+        if parsed.label in ["S", "SINV"]:
+            root = _parse_sentence(parsed)
+            if root.label == "SINV":
+                for vp in root.vps: vp.nps.extend(root.nps)
+                root.nps = []
+        return root
 
 
 def _subtrees(tree, labels: list) -> list:
