@@ -9,14 +9,11 @@ class Node(metaclass=ABCMeta):
     def __init__(self, label: str):
         self._label = label
 
-    def __str__(self) -> str:
-        return self.__string(0)
-
     @abstractmethod
     def children(self) -> dict:
         pass
 
-    def __string(self, shift) -> str:
+    def __str__(self, shift=0) -> str:
         result = ["{\n"]
         for i, (key, col) in enumerate(sorted(self.children().items())):
             result.append("\t" * shift)
@@ -27,7 +24,7 @@ class Node(metaclass=ABCMeta):
                 result.append("[")
                 for j, element in enumerate(col):
                     if isinstance(element, Node):
-                        result.append(element.__string(shift + 1))
+                        result.append(element.__str__(shift + 1))
                     else:
                         result.append(str(element))
                     if j < len(col) - 1: result.append(", ")

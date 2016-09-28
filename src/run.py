@@ -1,4 +1,3 @@
-from src.main.Handler import Handler
+from src.main.Bot import Bot
 
-handler = Handler(bot_nick="PythonBot")
-handler.start()
+Bot(bot_nick="PythonBot").start()
