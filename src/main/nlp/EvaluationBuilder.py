@@ -53,7 +53,6 @@ class EvaluationBuilder(Builder):
             return [arg for np in node.nps for arg in self._build(np, args + _args)]
 
     def build(self, root: Root) -> list:
-        if root is None: return
         closures = []
         for vp in root.vps:
             args = [self._build(node, []) for node in vp.nps] if len(vp.nps) > 0 else [Null()]

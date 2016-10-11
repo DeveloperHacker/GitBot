@@ -94,9 +94,8 @@ class Type(metaclass=ABCMeta):
     def isinstance(cls, element) -> bool:
         return isinstance(element, cls._inner)
 
-    @classmethod
-    def isprimitive(cls) -> bool:
-        return cls._primitive
+    def isprimitive(self) -> bool:
+        return self._primitive and (self._generic is None or self._generic.isprimitive())
 
     @staticmethod
     def valueOf(blocks: list) -> 'Type':
@@ -104,7 +103,7 @@ class Type(metaclass=ABCMeta):
         for subclass in _subclasses(Type):
             if subclass.__name__.lower() == blocks[0].lower():
                 result = subclass()
-                if len(blocks) > 1: result = result.set_generic(Type.valueOf(blocks[1:]))
+                if len(blocks) > 1: result._generic = Type.valueOf(blocks[1:])
                 return result
         return Null()
 
@@ -118,10 +117,8 @@ class List(Type):
         return self._generic
 
     def __init__(self, generic=None):
-        if generic is None: generic = []
-        self._generic = generic
+        if generic is None: generic = Any()
         super().__init__("list", *list(generic))
-        List._primitive = self._generic.isprimitive()
         List._inner = list
 
     def __str__(self) -> str:

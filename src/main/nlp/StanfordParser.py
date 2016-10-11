@@ -11,8 +11,10 @@ class StanfordNode(Node):
         super().__init__(label)
 
     def _pformat_flat(self, node_separator, brackets, first):
-        if self.isleaf(): return '{}{}'.format(self._label, node_separator)
-        child_strings = [child._pformat_flat(node_separator, brackets, False) for child in self.children()]
+        if self.isleaf():
+            child_strings = [str(child) for child in self.children()]
+        else:
+            child_strings = [child._pformat_flat(node_separator, brackets, False) for child in self.children()]
         if first: return '{}{} {}'.format(self._label, node_separator, ' '.join(child_strings))
         return '{}{}{} {}{}'.format(brackets[0], self._label, node_separator, ' '.join(child_strings), brackets[1])
 
@@ -29,7 +31,7 @@ class StanfordNode(Node):
         return self.pformat()
 
     def isleaf(self) -> bool:
-        return all([isinstance(child, str) for child in self.children()])
+        return not all([not isinstance(child, str) for child in self.children()])
 
     def flatten(self) -> list:
         return [word for child in self.children() for word in ([child] if isinstance(child, str) else child.flatten())]

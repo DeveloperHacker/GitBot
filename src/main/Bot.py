@@ -1,5 +1,6 @@
 from github import GithubException
 
+from main.interfaces.Stream import Stream
 from src.main.interfaces.Handler import Handler
 from src.main.interfaces.Executor import Executor
 from src.main.nlp.EvaluationBuilder import EvaluationBuilder
@@ -29,6 +30,12 @@ class Bot(Handler, Executor):
         self._parser = StanfordParser()
         self._corrector = StanfordCorrector()
         self._builder = EvaluationBuilder(lambda: self._connector, lambda _type: self._storeds[_type])
+        self._stream = Stream()
+        self._stream.add(self._read)
+        self._stream.add(self._parser.parse)
+        self._stream.add(self._corrector.correct)
+        self._stream.add(self._builder.build)
+        self._stream.add(self.execute)
 
     def _print(self, obj):
         for string in str(obj).split("\n"):
@@ -52,14 +59,7 @@ class Bot(Handler, Executor):
 
     def handle(self):
         try:
-            data = self._read()
-            parse = self._parser.parse(data)
-            IO.debug(parse)
-            root = self._corrector.correct(parse)
-            IO.debug(root)
-            closures = self._builder.build(root)
-            IO.debug(closures)
-            self.execute(closures)
+            self._stream.run()
         except NotAutorisedUserException as _:
             self._print("I don't know who are you")
         except GithubException as ex:
